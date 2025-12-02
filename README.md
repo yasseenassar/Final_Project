@@ -21,20 +21,33 @@ Interactive calculator that determines coffee/water ratios for brewed coffee or 
 
 ## Building the Project
 
-### Quick Compile Without Make
+### Option 1: Direct `g++` (no make required)
 - Linux/macOS console: `g++ -std=c++17 -Wall -g -Iinclude src/*.cpp -o bin/final_project`
 - Linux/macOS GUI (requires SFML): `g++ -std=c++17 -Wall -g -Iinclude src/*.cpp -lsfml-graphics -lsfml-window -lsfml-system -o bin/final_project_gui`
 - Windows console (MSYS2 MinGW64 shell): `g++ -std=c++17 -Wall -g -Iinclude src/*.cpp -o bin/final_project.exe`
 - Windows GUI (MSYS2 MinGW64 shell, SFML installed): `g++ -std=c++17 -Wall -g -Iinclude src/*.cpp -lsfml-graphics -lsfml-window -lsfml-system -o bin/final_project_gui.exe`
 
+### Option 2: Using Make (requires make/mingw32-make)
+- Linux/macOS:
+  - `make` (build console)
+  - `make run` (build + run console)
+  - `make gui` / `make run-gui` (build + run GUI, needs SFML)
+  - `make clean` (remove build artifacts)
+  - `make help` (targets summary)
+- Windows (PowerShell or cmd in MSYS2 MinGW64 shell):
+  - `mingw32-make` (build console) -> `bin\final_project.exe`
+  - `mingw32-make run`
+  - `mingw32-make gui` / `mingw32-make run-gui` (GUI, needs SFML)
+  - `mingw32-make clean`
+
 ### Requirements
 - C++ compiler with C++17 support (g++ or MinGW-w64 g++)
-- GNU Make (Linux/macOS) or mingw32-make (Windows)
-- Optional for GUI: SFML 2.5+ (libsfml-dev on Ubuntu/Debian, MSYS2/mingw-w64
-  packages on Windows)
+- GNU Make (Linux/macOS) or mingw32-make (Windows) if using the Makefile
+- Optional for GUI: SFML 2.5+ (libsfml-dev on Ubuntu/Debian, Homebrew `sfml` on macOS, MSYS2/mingw-w64 packages on Windows)
 
 Install SFML (GUI only):
 - Ubuntu/Debian: `sudo apt-get update && sudo apt-get install -y libsfml-dev`
+- macOS (Homebrew): `brew install sfml`
 - Windows (MSYS2 MinGW64 shell): `pacman -S mingw-w64-x86_64-sfml`
 
 ### Environment Setup
@@ -57,32 +70,6 @@ Windows (MSYS2 MinGW64 shell):
   - `pacman -S --needed base-devel mingw-w64-x86_64-toolchain`
 - Optional GUI (SFML 2.5+):
   - `pacman -S mingw-w64-x86_64-sfml`
-
-### Build Commands
-```bash
-make            # Compile the project (Linux/macOS/Git Bash)
-make clean      # Remove all build artifacts
-make run        # Build and run the program
-make help       # Show available targets
-
-# Windows (PowerShell or cmd with MinGW-w64)
-mingw32-make    # Build -> bin\final_project.exe
-mingw32-make run
-mingw32-make clean
-
-# macOS (Terminal with Xcode CLT and optional Homebrew SFML)
-# If SFML installed via Homebrew, it will be picked up by default brew paths.
-
-# Optional SFML GUI window (after installing SFML):
-make gui        # Build -> bin/final_project_gui
-make run-gui    # Build and run GUI
-# Windows: mingw32-make gui / mingw32-make run-gui
-# Windows run command: .\bin\final_project_gui.exe
-
-### Modes
-- Terminal mode: `make run` (Linux/macOS) or `mingw32-make run` (Windows) to use the text UI.
-- GUI mode: `make run-gui` (Linux/macOS) or `mingw32-make run-gui` (Windows) after SFML is installed.
-```
 
 ## Running the Program
 ```bash
