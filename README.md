@@ -21,6 +21,18 @@ Interactive calculator that determines coffee/water ratios for brewed coffee or 
 
 ## Building the Project
 
+### Quick Compile Without Make
+- Linux/macOS console: `g++ -std=c++17 -Wall -g -Iinclude src/*.cpp -o bin/final_project`
+- Linux/macOS GUI (requires SFML): `g++ -std=c++17 -Wall -g -Iinclude src/*.cpp -lsfml-graphics -lsfml-window -lsfml-system -o bin/final_project_gui`
+- Windows console (MSYS2 MinGW64 shell): `g++ -std=c++17 -Wall -g -Iinclude src/*.cpp -o bin/final_project.exe`
+- Windows GUI (MSYS2 MinGW64 shell, SFML installed): `g++ -std=c++17 -Wall -g -Iinclude src/*.cpp -lsfml-graphics -lsfml-window -lsfml-system -o bin/final_project_gui.exe`
+
+### Run Commands (per OS and mode)
+- Linux/macOS console: `./bin/final_project`
+- Linux/macOS GUI: `./bin/final_project_gui` (after SFML install)
+- Windows console (cmd/PowerShell): `.\bin\final_project.exe`
+- Windows GUI (cmd/PowerShell): `.\bin\final_project_gui.exe` (after SFML install)
+
 ### Requirements
 - C++ compiler with C++17 support (g++ or MinGW-w64 g++)
 - GNU Make (Linux/macOS) or mingw32-make (Windows)
@@ -138,3 +150,4 @@ Follow the on-screen prompts to customize your drink parameters.
 - GUI: SFML interface with arrow-key navigation mirroring terminal flow; supports creating and loading presets; centered prompts/summaries.
 - Preset manager: added `getPresetNames()` to list presets for GUI loading.
 - Docs/help: README and `make help` now include OS-specific build/run commands and copy-paste setup for Linux and Windows.
+- Cleanup: removed obsolete root-level duplicates of source/header files; canonical code lives in `src/` and `include/`.
