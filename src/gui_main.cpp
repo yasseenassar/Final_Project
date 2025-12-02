@@ -155,6 +155,7 @@ int runGui() {
     return 1;
 
   UiState state;
+  bool shouldClose = false;
 
   auto setOptions = [&](Screen s, const std::string &prompt,
                         std::initializer_list<std::string> opts) {
@@ -297,9 +298,8 @@ int runGui() {
       } else if (state.selected == 2) {
         startLoadPresetFlow();
       } else {
-        // Quit
-        state.summary = "Goodbye!";
-        state.screen = Screen::Summary;
+        shouldClose = true;
+        window.close();
       }
       break;
     case Screen::ChooseDrink:
@@ -471,6 +471,9 @@ int runGui() {
         }
       }
     }
+
+    if (shouldClose)
+      break;
 
     window.clear(sf::Color(18, 20, 26));
 
