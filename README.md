@@ -120,6 +120,7 @@ Follow the on-screen prompts to customize your drink parameters.
 ### GUI Interface (SFML)
 - Entry: `src/gui_main.cpp` with `runGui()` and `main()`.
 - Navigation: arrow keys move selection; Enter confirms; Esc returns to main menu. Number fields (cups, shots, custom ratio) use Up/Down to adjust; text entry for preset names.
+- Back: Left arrow moves to the previous step while keeping your current selections/inputs.
 - Flow mirrors the terminal:
   - Main menu: Make a drink, Create preset, Load preset, Quit (Quit closes the window).
   - Coffee flow: drink type → roast → strength → cups → summary.

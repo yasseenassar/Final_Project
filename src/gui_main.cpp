@@ -112,6 +112,7 @@ struct UiState {
   // presets
   std::string presetName;
   PresetManager presets;
+  std::vector<Screen> history;
 };
 
 std::string buildCoffeeSummary(const UiState &state, const CoffeeResult &r) {
@@ -157,8 +158,118 @@ int runGui() {
   UiState state;
   bool shouldClose = false;
 
+  auto pushHistory = [&]() {
+    if (state.screen != Screen::Summary && state.screen != Screen::Error &&
+        state.screen != Screen::MainMenu) {
+      state.history.push_back(state.screen);
+    }
+  };
+
+  auto configureScreen = [&](Screen s) {
+    state.screen = s;
+    state.valueMode = false;
+    state.textMode = false;
+    state.options.clear();
+    state.message.clear();
+    switch (s) {
+    case Screen::MainMenu:
+      state.prompt = "Select an action";
+      state.options = {"Make a drink", "Create preset", "Load preset", "Quit"};
+      state.selected = 0;
+      break;
+    case Screen::ChooseDrink:
+      state.prompt = "Choose drink type";
+      state.options = {"coffee", "latte"};
+      state.selected = (state.drinkType == "latte") ? 1 : 0;
+      break;
+    case Screen::CoffeeRoast:
+      state.prompt = "Select roast";
+      state.options = {"light", "medium", "dark"};
+      if (state.roastType == "medium")
+        state.selected = 1;
+      else if (state.roastType == "dark")
+        state.selected = 2;
+      else
+        state.selected = 0;
+      break;
+    case Screen::CoffeeStrength:
+      state.prompt = "Coffee strength";
+      state.options = {"bolder", "medium", "weaker"};
+      if (state.coffeeStrength == "medium")
+        state.selected = 1;
+      else if (state.coffeeStrength == "weaker")
+        state.selected = 2;
+      else
+        state.selected = 0;
+      break;
+    case Screen::CoffeeCups:
+      state.prompt = "Cups (Up/Down, Enter to confirm)";
+      state.valueMode = true;
+      state.valueLabel = "cups";
+      state.value = (state.coffeeCups > 0.0) ? state.coffeeCups : 1.0;
+      state.step = 0.5;
+      state.minValue = 0.5;
+      break;
+    case Screen::LatteStrength:
+      state.prompt = "Latte strength";
+      state.options = {"stronger", "weaker"};
+      state.selected = (state.latteStrength == "weaker") ? 1 : 0;
+      break;
+    case Screen::LatteShotSize:
+      state.prompt = "Shot size";
+      state.options = {"single", "double"};
+      state.selected = (state.latteShotSize == "double") ? 1 : 0;
+      break;
+    case Screen::LatteShots:
+      state.prompt = "Number of shots (Up/Down, Enter to confirm)";
+      state.valueMode = true;
+      state.valueLabel = "shots";
+      state.value = (state.latteShots > 0) ? state.latteShots : 1;
+      state.step = 1;
+      state.minValue = 1;
+      break;
+    case Screen::LatteMilkStyle:
+      state.prompt = "Milk style";
+      state.options = {"none", "cortado", "flatwhite", "latte", "custom"};
+      if (state.latteMilkStyle == "cortado")
+        state.selected = 1;
+      else if (state.latteMilkStyle == "flatwhite")
+        state.selected = 2;
+      else if (state.latteMilkStyle == "latte")
+        state.selected = 3;
+      else if (state.latteMilkStyle == "custom")
+        state.selected = 4;
+      else
+        state.selected = 0;
+      break;
+    case Screen::LatteMilkRatio:
+      state.prompt = "Custom milk:espresso ratio (Up/Down, Enter)";
+      state.valueMode = true;
+      state.valueLabel = "ratio";
+      state.value = (state.latteMilkRatio >= 0.0) ? state.latteMilkRatio : 2.0;
+      state.step = 0.1;
+      state.minValue = 0.0;
+      break;
+    case Screen::PresetName:
+      state.prompt = "Enter preset name (type, Enter to confirm)";
+      state.textMode = true;
+      state.textInput = state.presetName;
+      break;
+    case Screen::LoadPresetList: {
+      state.prompt = "Select a preset to load";
+      state.options = state.presets.getPresetNames();
+      state.selected = 0;
+      break;
+    }
+    case Screen::Summary:
+    case Screen::Error:
+      break;
+    }
+  };
+
   auto setOptions = [&](Screen s, const std::string &prompt,
                         std::initializer_list<std::string> opts) {
+    pushHistory();
     state.screen = s;
     state.prompt = prompt;
     state.options.assign(opts);
@@ -171,6 +282,7 @@ int runGui() {
 
   auto setOptionsVec = [&](Screen s, const std::string &prompt,
                            const std::vector<std::string> &opts) {
+    pushHistory();
     state.screen = s;
     state.prompt = prompt;
     state.options = opts;
@@ -183,6 +295,7 @@ int runGui() {
 
   auto setValue = [&](Screen s, const std::string &prompt, double start,
                       double step, double min, const std::string &label) {
+    pushHistory();
     state.screen = s;
     state.prompt = prompt;
     state.valueMode = true;
@@ -196,6 +309,7 @@ int runGui() {
   };
 
   auto setText = [&](Screen s, const std::string &prompt) {
+    pushHistory();
     state.screen = s;
     state.prompt = prompt;
     state.textMode = true;
@@ -209,8 +323,8 @@ int runGui() {
     Flow prev = state.flow;
     state = UiState();
     state.flow = Flow::None;
-    setOptions(Screen::MainMenu, "Select an action",
-               {"Make a drink", "Create preset", "Load preset", "Quit"});
+    state.history.clear();
+    configureScreen(Screen::MainMenu);
     if (prev == Flow::CreatePreset || prev == Flow::LoadPreset) {
       state.message = "Preset operations now available in GUI.";
     }
@@ -286,6 +400,14 @@ int runGui() {
   };
 
   resetToMenu();
+
+  auto goBack = [&]() {
+    if (state.history.empty())
+      return;
+    Screen prev = state.history.back();
+    state.history.pop_back();
+    configureScreen(prev);
+  };
 
   auto confirmSelection = [&]() {
     state.message.clear();
@@ -434,7 +556,9 @@ int runGui() {
       if (event.type == sf::Event::Closed) {
         window.close();
       } else if (event.type == sf::Event::KeyPressed) {
-        if (event.key.code == sf::Keyboard::Escape) {
+        if (event.key.code == sf::Keyboard::Left) {
+          goBack();
+        } else if (event.key.code == sf::Keyboard::Escape) {
           resetToMenu();
         } else if (state.valueMode) {
           if (event.key.code == sf::Keyboard::Up) {
