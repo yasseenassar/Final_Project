@@ -95,6 +95,33 @@ The program presents an interactive menu where you can:
 
 Follow the on-screen prompts to customize your drink parameters.
 
+## How It Works
+
+### Terminal Interface (text UI)
+- Entry point: `src/main.cpp` creates a `MachineDisplay` and calls `run()`.
+- `MachineDisplay` (in `src/machineDisplay.cpp`):
+  - Shows the main menu (make a drink, create a preset, load a preset).
+  - For coffee: asks roast (light/medium/dark), strength (bolder/medium/weaker), cups; calls `calcCoffee` from `functions.cpp`; prints a summary.
+  - For latte: asks strength (stronger/weaker), shot size (single/double), number of shots, milk style (none/cortado/flatwhite/latte/custom); optional custom milk ratio; calls `calcLatteFromShots`; prints a summary.
+  - Presets: `createPreset` collects drink inputs and stores via `PresetManager`; `loadPreset` finds a preset, recalculates, and prints the summary.
+- Core math: `functions.cpp` provides `calcCoffee`, `calcLatteFromShots`, conversions, and summary printers. Constants live in `constants.hpp`.
+- Presets: `Presets` stores one configuration; `PresetManager` holds many and can list or fetch by name.
+
+### GUI Interface (SFML)
+- Entry: `src/gui_main.cpp` with `runGui()` and `main()`.
+- Navigation: arrow keys move selection; Enter confirms; Esc returns to main menu. Number fields (cups, shots, custom ratio) use Up/Down to adjust; text entry for preset names.
+- Flow mirrors the terminal:
+  - Main menu: Make a drink, Create preset, Load preset, Quit (Quit closes the window).
+  - Coffee flow: drink type → roast → strength → cups → summary.
+  - Latte flow: drink type → strength → shot size → shots → milk style (custom prompts ratio) → summary.
+  - Presets: can create (coffee or latte) and save; load lists saved presets and recalculates summaries.
+- Rendering: simple centered text, highlighted selections. The window closes immediately when Quit is confirmed.
+
+### Data Structures
+- `CoffeeResult` and `LatteResult` structs carry computed values for summaries.
+- `Presets` holds a saved drink; `PresetManager` manages a vector of presets and exposes names for GUI loading.
+- `constants.hpp` defines shared constants (e.g., mL per cup, grams per tablespoon).
+
 ## Recent Changes
 - Cross-platform Makefile: Windows/Linux support with GUI targets; MinGW/SFML documented.
 - Header hygiene: removed `using namespace std` from headers and unused includes to avoid conflicts.
