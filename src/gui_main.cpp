@@ -30,6 +30,13 @@ enum class Screen {
   Error
 };
 
+/******************************************************************
+ * Function: loadFont
+ * ---------------------------------------------------------------
+ * Attempts to load a font from common system locations.
+ *
+ * Returns true on success.
+ ******************************************************************/
 bool loadFont(sf::Font &font) {
   const std::vector<std::string> candidates = {
       "resources/DejaVuSans.ttf",
@@ -43,18 +50,33 @@ bool loadFont(sf::Font &font) {
   return false;
 }
 
+/******************************************************************
+ * Function: makeText
+ * ---------------------------------------------------------------
+ * Builds an SFML text object with the default light color.
+ ******************************************************************/
 sf::Text makeText(const sf::Font &font, const std::string &str, unsigned size) {
   sf::Text t(str, font, size);
   t.setFillColor(sf::Color(240, 240, 240));
   return t;
 }
 
+/******************************************************************
+ * Function: centerHoriz
+ * ---------------------------------------------------------------
+ * Centers a text horizontally at the given y on a window of width.
+ ******************************************************************/
 void centerHoriz(sf::Text &text, float y, float width) {
   sf::FloatRect b = text.getLocalBounds();
   text.setOrigin(b.left + b.width / 2.0f, b.top + b.height / 2.0f);
   text.setPosition(width / 2.0f, y);
 }
 
+/******************************************************************
+ * Function: drawOptions
+ * ---------------------------------------------------------------
+ * Renders a vertical list of options with a highlight for selection.
+ ******************************************************************/
 void drawOptions(sf::RenderWindow &window, const sf::Font &font,
                  const std::vector<std::string> &opts, std::size_t selected,
                  float startY) {
@@ -117,6 +139,11 @@ struct UiState {
   std::vector<Screen> history;
 };
 
+/******************************************************************
+ * Function: buildCoffeeSummary
+ * ---------------------------------------------------------------
+ * Formats a coffee result into a multi-line summary string.
+ ******************************************************************/
 std::string buildCoffeeSummary(const UiState &state, const CoffeeResult &r) {
   auto fd = [](double x) {
     std::ostringstream oss;
@@ -133,6 +160,11 @@ std::string buildCoffeeSummary(const UiState &state, const CoffeeResult &r) {
   return s;
 }
 
+/******************************************************************
+ * Function: buildLatteSummary
+ * ---------------------------------------------------------------
+ * Formats a latte result into a multi-line summary string.
+ ******************************************************************/
 std::string buildLatteSummary(const UiState &state, const LatteResult &r) {
   auto fd = [](double x) {
     std::ostringstream oss;
@@ -155,6 +187,15 @@ std::string buildLatteSummary(const UiState &state, const LatteResult &r) {
 
 } // namespace
 
+/******************************************************************
+ * Function: runGui
+ * ---------------------------------------------------------------
+ * Entry point for the SFML GUI. Manages navigation, rendering, and
+ * drink/preset flows using simple state tracking.
+ *
+ * Returns:
+ *   0 on normal exit.
+ ******************************************************************/
 int runGui() {
   sf::RenderWindow window(sf::VideoMode(760, 540), "Coffee & Latte Calculator",
                           sf::Style::Titlebar | sf::Style::Close);
@@ -672,4 +713,9 @@ int runGui() {
   return 0;
 }
 
+/******************************************************************
+ * Function: main
+ * ---------------------------------------------------------------
+ * Program entry for the GUI build; delegates to runGui.
+ ******************************************************************/
 int main() { return runGui(); }
