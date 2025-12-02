@@ -4,33 +4,33 @@
 #include "presets.hpp"
 #include "presetsManager.hpp"
 #include <SFML/Graphics.hpp>
-#include <algorithm>
+#include <sstream>
+#include <iomanip>
 #include <string>
 #include <vector>
+#include <sstream>
+#include <iomanip>
 
 namespace {
 
-// Screen codes (kept as ints to avoid enum usage)
-constexpr int SCREEN_MAIN = 0;
-constexpr int SCREEN_CHOOSE_DRINK = 1;
-constexpr int SCREEN_COFFEE_ROAST = 2;
-constexpr int SCREEN_COFFEE_STRENGTH = 3;
-constexpr int SCREEN_COFFEE_CUPS = 4;
-constexpr int SCREEN_LATTE_STRENGTH = 5;
-constexpr int SCREEN_LATTE_SHOT_SIZE = 6;
-constexpr int SCREEN_LATTE_SHOTS = 7;
-constexpr int SCREEN_LATTE_MILK_STYLE = 8;
-constexpr int SCREEN_LATTE_MILK_RATIO = 9;
-constexpr int SCREEN_PRESET_NAME = 10;
-constexpr int SCREEN_LOAD_PRESET_LIST = 11;
-constexpr int SCREEN_SUMMARY = 12;
-constexpr int SCREEN_ERROR = 13;
+enum class Flow { None, Make, CreatePreset, LoadPreset };
 
-// Flow codes
-constexpr int FLOW_NONE = 0;
-constexpr int FLOW_MAKE = 1;
-constexpr int FLOW_CREATE_PRESET = 2;
-constexpr int FLOW_LOAD_PRESET = 3;
+enum class Screen {
+  MainMenu,
+  ChooseDrink,
+  CoffeeRoast,
+  CoffeeStrength,
+  CoffeeCups,
+  LatteStrength,
+  LatteShotSize,
+  LatteShots,
+  LatteMilkStyle,
+  LatteMilkRatio,
+  PresetName,
+  LoadPresetList,
+  Summary,
+  Error
+};
 
 bool loadFont(sf::Font &font) {
   const std::vector<std::string> candidates = {
@@ -65,7 +65,8 @@ void drawOptions(sf::RenderWindow &window, const sf::Font &font,
     sf::Text t = makeText(font, opts[i], 18);
     sf::FloatRect b = t.getLocalBounds();
     if (i == selected) {
-      sf::RectangleShape bg(sf::Vector2f(b.width + 24.0f, b.height + 14.0f));
+      sf::RectangleShape bg(
+          sf::Vector2f(b.width + 24.0f, b.height + 14.0f));
       bg.setFillColor(sf::Color(60, 90, 160));
       bg.setOrigin(bg.getSize().x / 2.0f, bg.getSize().y / 2.0f);
       bg.setPosition(window.getSize().x / 2.0f, y + b.height / 2.0f);
@@ -77,34 +78,79 @@ void drawOptions(sf::RenderWindow &window, const sf::Font &font,
   }
 }
 
-std::string buildCoffeeSummary(const std::string &roast,
-                               const std::string &strength,
-                               const CoffeeResult &r) {
+struct UiState {
+  Flow flow = Flow::None;
+  Screen screen = Screen::MainMenu;
+  std::string prompt;
+  std::string message;
+  std::string summary;
+
+  // selection list
+  std::vector<std::string> options;
+  std::size_t selected = 0;
+
+  // numeric selection
+  bool valueMode = false;
+  double value = 0.0;
+  double step = 1.0;
+  double minValue = 0.0;
+  std::string valueLabel;
+
+  // text input
+  bool textMode = false;
+  std::string textInput;
+
+  // captured inputs
+  std::string drinkType;
+  std::string roastType;
+  std::string coffeeStrength;
+  double coffeeCups = 0.0;
+
+  std::string latteStrength;
+  std::string latteShotSize;
+  int latteShots = 0;
+  std::string latteMilkStyle;
+  double latteMilkRatio = 0.0;
+  bool needsCustomRatio = false;
+
+  // presets
+  std::string presetName;
+  PresetManager presets;
+  std::vector<Screen> history;
+};
+
+std::string buildCoffeeSummary(const UiState &state, const CoffeeResult &r) {
+  auto fd = [](double x) {
+    std::ostringstream oss;
+    oss << std::fixed << std::setprecision(2) << x;
+    return oss.str();
+  };
   std::string s;
   s += "Coffee Summary\n";
-  s += "Roast: " + roast + "\n";
-  s += "Strength: " + strength + " (1:" +
+  s += "Roast: " + state.roastType + "\n";
+  s += "Strength: " + state.coffeeStrength + " (1:" +
        std::to_string(static_cast<int>(r.ratio)) + ")\n";
-  s += "Water: " + std::to_string(r.waterML) + " mL\n";
-  s += "Coffee: " + std::to_string(r.coffeeGrams) + " g (" +
-       std::to_string(r.tablespoons) + " tbsp)";
+  s += "Water: " + fd(r.waterML) + " mL\n";
+  s += "Coffee: " + fd(r.coffeeGrams) + " g (" + fd(r.tablespoons) + " tbsp)";
   return s;
 }
 
-std::string buildLatteSummary(const std::string &strength,
-                              const std::string &shotSize, int shots,
-                              const std::string &milkStyle, double milkRatio,
-                              const LatteResult &r) {
+std::string buildLatteSummary(const UiState &state, const LatteResult &r) {
+  auto fd = [](double x) {
+    std::ostringstream oss;
+    oss << std::fixed << std::setprecision(2) << x;
+    return oss.str();
+  };
   std::string s;
   s += "Latte Summary\n";
-  s += "Strength: " + strength + "\n";
-  s += "Shots: " + std::to_string(shots) + " x " + shotSize + "\n";
-  s += "Coffee: " + std::to_string(r.coffeeGrams) + " g (" +
-       std::to_string(r.tablespoons) + " tbsp)\n";
-  s += "Espresso: " + std::to_string(r.espressoML) + " mL\n";
+  s += "Strength: " + state.latteStrength + "\n";
+  s += "Shots: " + std::to_string(state.latteShots) + " x " +
+       state.latteShotSize + "\n";
+  s += "Coffee: " + fd(r.coffeeGrams) + " g (" + fd(r.tablespoons) + " tbsp)\n";
+  s += "Espresso: " + fd(r.espressoML) + " mL\n";
   if (r.hasMilkTarget) {
-    s += "Milk: " + std::to_string(r.milkML) + " mL (style " + milkStyle + ")";
-    s += "\nFinal: " + std::to_string(r.finalML) + " mL";
+    s += "Milk: " + fd(r.milkML) + " mL (style " + state.latteMilkStyle + ")\n";
+    s += "Final: " + fd(r.finalML) + " mL";
   }
   return s;
 }
@@ -120,407 +166,398 @@ int runGui() {
   if (!loadFont(font))
     return 1;
 
-  int flow = FLOW_NONE;
-  int screen = SCREEN_MAIN;
-  std::string prompt;
-  std::string message;
-  std::string summary;
-
-  std::vector<std::string> options;
-  std::size_t selected = 0;
-
-  bool valueMode = false;
-  double value = 0.0;
-  double step = 1.0;
-  double minValue = 0.0;
-  std::string valueLabel;
-
-  bool textMode = false;
-  std::string textInput;
-
-  std::string drinkType;
-  std::string roastType;
-  std::string coffeeStrength;
-  double coffeeCups = 0.0;
-
-  std::string latteStrength;
-  std::string latteShotSize;
-  int latteShots = 0;
-  std::string latteMilkStyle;
-  double latteMilkRatio = 0.0;
-  bool needsCustomRatio = false;
-
-  std::string presetName;
-  PresetManager presets;
-  std::vector<int> history;
+  UiState state;
   bool shouldClose = false;
 
   auto pushHistory = [&]() {
-    if (screen != SCREEN_MAIN && screen != SCREEN_SUMMARY &&
-        screen != SCREEN_ERROR) {
-      history.push_back(screen);
+    if (state.screen != Screen::Summary && state.screen != Screen::Error &&
+        state.screen != Screen::MainMenu) {
+      state.history.push_back(state.screen);
     }
   };
 
-  auto configureScreen = [&](int s) {
-    screen = s;
-    valueMode = false;
-    textMode = false;
-    options.clear();
-    message.clear();
-
-    if (s == SCREEN_MAIN) {
-      prompt = "Select an action";
-      options = {"Make a drink", "Create preset", "Load preset", "Quit"};
-      selected = 0;
-    } else if (s == SCREEN_CHOOSE_DRINK) {
-      prompt = "Choose drink type";
-      options = {"coffee", "latte"};
-      selected = (drinkType == "latte") ? 1 : 0;
-    } else if (s == SCREEN_COFFEE_ROAST) {
-      prompt = "Select roast";
-      options = {"light", "medium", "dark"};
-      if (roastType == "medium")
-        selected = 1;
-      else if (roastType == "dark")
-        selected = 2;
+  auto configureScreen = [&](Screen s) {
+    state.screen = s;
+    state.valueMode = false;
+    state.textMode = false;
+    state.options.clear();
+    state.message.clear();
+    switch (s) {
+    case Screen::MainMenu:
+      state.prompt = "Select an action";
+      state.options = {"Make a drink", "Create preset", "Load preset", "Quit"};
+      state.selected = 0;
+      break;
+    case Screen::ChooseDrink:
+      state.prompt = "Choose drink type";
+      state.options = {"coffee", "latte"};
+      state.selected = (state.drinkType == "latte") ? 1 : 0;
+      break;
+    case Screen::CoffeeRoast:
+      state.prompt = "Select roast";
+      state.options = {"light", "medium", "dark"};
+      if (state.roastType == "medium")
+        state.selected = 1;
+      else if (state.roastType == "dark")
+        state.selected = 2;
       else
-        selected = 0;
-    } else if (s == SCREEN_COFFEE_STRENGTH) {
-      prompt = "Coffee strength";
-      options = {"bolder", "medium", "weaker"};
-      if (coffeeStrength == "medium")
-        selected = 1;
-      else if (coffeeStrength == "weaker")
-        selected = 2;
+        state.selected = 0;
+      break;
+    case Screen::CoffeeStrength:
+      state.prompt = "Coffee strength";
+      state.options = {"bolder", "medium", "weaker"};
+      if (state.coffeeStrength == "medium")
+        state.selected = 1;
+      else if (state.coffeeStrength == "weaker")
+        state.selected = 2;
       else
-        selected = 0;
-    } else if (s == SCREEN_COFFEE_CUPS) {
-      prompt = "Cups (Up/Down, Enter to confirm)";
-      valueMode = true;
-      valueLabel = "cups";
-      value = (coffeeCups > 0.0) ? coffeeCups : 1.0;
-      step = 0.5;
-      minValue = 0.5;
-    } else if (s == SCREEN_LATTE_STRENGTH) {
-      prompt = "Latte strength";
-      options = {"stronger", "weaker"};
-      selected = (latteStrength == "weaker") ? 1 : 0;
-    } else if (s == SCREEN_LATTE_SHOT_SIZE) {
-      prompt = "Shot size";
-      options = {"single", "double"};
-      selected = (latteShotSize == "double") ? 1 : 0;
-    } else if (s == SCREEN_LATTE_SHOTS) {
-      prompt = "Number of shots (Up/Down, Enter to confirm)";
-      valueMode = true;
-      valueLabel = "shots";
-      value = (latteShots > 0) ? latteShots : 1;
-      step = 1;
-      minValue = 1;
-    } else if (s == SCREEN_LATTE_MILK_STYLE) {
-      prompt = "Milk style";
-      options = {"none", "cortado", "flatwhite", "latte", "custom"};
-      if (latteMilkStyle == "cortado")
-        selected = 1;
-      else if (latteMilkStyle == "flatwhite")
-        selected = 2;
-      else if (latteMilkStyle == "latte")
-        selected = 3;
-      else if (latteMilkStyle == "custom")
-        selected = 4;
+        state.selected = 0;
+      break;
+    case Screen::CoffeeCups:
+      state.prompt = "Cups (Up/Down, Enter to confirm)";
+      state.valueMode = true;
+      state.valueLabel = "cups";
+      state.value = (state.coffeeCups > 0.0) ? state.coffeeCups : 1.0;
+      state.step = 0.5;
+      state.minValue = 0.5;
+      break;
+    case Screen::LatteStrength:
+      state.prompt = "Latte strength";
+      state.options = {"stronger", "weaker"};
+      state.selected = (state.latteStrength == "weaker") ? 1 : 0;
+      break;
+    case Screen::LatteShotSize:
+      state.prompt = "Shot size";
+      state.options = {"single", "double"};
+      state.selected = (state.latteShotSize == "double") ? 1 : 0;
+      break;
+    case Screen::LatteShots:
+      state.prompt = "Number of shots (Up/Down, Enter to confirm)";
+      state.valueMode = true;
+      state.valueLabel = "shots";
+      state.value = (state.latteShots > 0) ? state.latteShots : 1;
+      state.step = 1;
+      state.minValue = 1;
+      break;
+    case Screen::LatteMilkStyle:
+      state.prompt = "Milk style";
+      state.options = {"none", "cortado", "flatwhite", "latte", "custom"};
+      if (state.latteMilkStyle == "cortado")
+        state.selected = 1;
+      else if (state.latteMilkStyle == "flatwhite")
+        state.selected = 2;
+      else if (state.latteMilkStyle == "latte")
+        state.selected = 3;
+      else if (state.latteMilkStyle == "custom")
+        state.selected = 4;
       else
-        selected = 0;
-    } else if (s == SCREEN_LATTE_MILK_RATIO) {
-      prompt = "Custom milk:espresso ratio (Up/Down, Enter)";
-      valueMode = true;
-      valueLabel = "ratio";
-      value = (latteMilkRatio >= 0.0) ? latteMilkRatio : 2.0;
-      step = 0.1;
-      minValue = 0.0;
-    } else if (s == SCREEN_PRESET_NAME) {
-      prompt = "Enter preset name (type, Enter to confirm)";
-      textMode = true;
-      textInput = presetName;
-    } else if (s == SCREEN_LOAD_PRESET_LIST) {
-      prompt = "Select a preset to load";
-      options = presets.getPresetNames();
-      selected = 0;
+        state.selected = 0;
+      break;
+    case Screen::LatteMilkRatio:
+      state.prompt = "Custom milk:espresso ratio (Up/Down, Enter)";
+      state.valueMode = true;
+      state.valueLabel = "ratio";
+      state.value = (state.latteMilkRatio >= 0.0) ? state.latteMilkRatio : 2.0;
+      state.step = 0.1;
+      state.minValue = 0.0;
+      break;
+    case Screen::PresetName:
+      state.prompt = "Enter preset name (type, Enter to confirm)";
+      state.textMode = true;
+      state.textInput = state.presetName;
+      break;
+    case Screen::LoadPresetList: {
+      state.prompt = "Select a preset to load";
+      state.options = state.presets.getPresetNames();
+      state.selected = 0;
+      break;
+    }
+    case Screen::Summary:
+    case Screen::Error:
+      break;
     }
   };
 
-  auto setOptions = [&](int s, const std::string &p,
+  auto setOptions = [&](Screen s, const std::string &prompt,
                         std::initializer_list<std::string> opts) {
     pushHistory();
-    screen = s;
-    prompt = p;
-    options.assign(opts);
-    selected = 0;
-    valueMode = false;
-    textMode = false;
-    textInput.clear();
-    message.clear();
+    state.screen = s;
+    state.prompt = prompt;
+    state.options.assign(opts);
+    state.selected = 0;
+    state.valueMode = false;
+    state.textMode = false;
+    state.textInput.clear();
+    state.message.clear();
   };
 
-  auto setOptionsVec = [&](int s, const std::string &p,
+  auto setOptionsVec = [&](Screen s, const std::string &prompt,
                            const std::vector<std::string> &opts) {
     pushHistory();
-    screen = s;
-    prompt = p;
-    options = opts;
-    selected = 0;
-    valueMode = false;
-    textMode = false;
-    textInput.clear();
-    message.clear();
+    state.screen = s;
+    state.prompt = prompt;
+    state.options = opts;
+    state.selected = 0;
+    state.valueMode = false;
+    state.textMode = false;
+    state.textInput.clear();
+    state.message.clear();
   };
 
-  auto setValue = [&](int s, const std::string &p, double start, double stepIn,
-                      double min, const std::string &label) {
+  auto setValue = [&](Screen s, const std::string &prompt, double start,
+                      double step, double min, const std::string &label) {
     pushHistory();
-    screen = s;
-    prompt = p;
-    valueMode = true;
-    textMode = false;
-    value = start;
-    step = stepIn;
-    minValue = min;
-    valueLabel = label;
-    options.clear();
-    message.clear();
+    state.screen = s;
+    state.prompt = prompt;
+    state.valueMode = true;
+    state.textMode = false;
+    state.value = start;
+    state.step = step;
+    state.minValue = min;
+    state.valueLabel = label;
+    state.options.clear();
+    state.message.clear();
   };
 
-  auto setText = [&](int s, const std::string &p) {
+  auto setText = [&](Screen s, const std::string &prompt) {
     pushHistory();
-    screen = s;
-    prompt = p;
-    textMode = true;
-    valueMode = false;
-    textInput.clear();
-    options.clear();
-    message.clear();
+    state.screen = s;
+    state.prompt = prompt;
+    state.textMode = true;
+    state.valueMode = false;
+    state.textInput.clear();
+    state.options.clear();
+    state.message.clear();
   };
 
   auto resetToMenu = [&]() {
-    int prev = flow;
-    flow = FLOW_NONE;
-    screen = SCREEN_MAIN;
-    prompt = "Select an action";
-    options = {"Make a drink", "Create preset", "Load preset", "Quit"};
-    selected = 0;
-    valueMode = false;
-    textMode = false;
-    textInput.clear();
-    message.clear();
-    summary.clear();
-    drinkType.clear();
-    roastType.clear();
-    coffeeStrength.clear();
-    coffeeCups = 0.0;
-    latteStrength.clear();
-    latteShotSize.clear();
-    latteShots = 0;
-    latteMilkStyle.clear();
-    latteMilkRatio = 0.0;
-    needsCustomRatio = false;
-    presetName.clear();
-    history.clear();
-    shouldClose = false;
-    if (prev == FLOW_CREATE_PRESET || prev == FLOW_LOAD_PRESET) {
-      message = "Preset operations now available in GUI.";
+    Flow prev = state.flow;
+    state = UiState();
+    state.flow = Flow::None;
+    state.history.clear();
+    configureScreen(Screen::MainMenu);
+    if (prev == Flow::CreatePreset || prev == Flow::LoadPreset) {
+      state.message = "Preset operations now available in GUI.";
     }
   };
 
-  resetToMenu();
-
   auto computeCoffee = [&]() -> bool {
     CoffeeResult r;
-    if (!calcCoffee(coffeeStrength, roastType, coffeeCups, r))
+    if (!calcCoffee(state.coffeeStrength, state.roastType, state.coffeeCups, r))
       return false;
 
-    if (flow == FLOW_CREATE_PRESET) {
-      Presets p(presetName);
-      p.setCoffee(roastType, coffeeStrength, coffeeCups);
-      presets.addPreset(p);
-      summary = "Preset saved: " + presetName + "\n\n" +
-                buildCoffeeSummary(roastType, coffeeStrength, r);
+    if (state.flow == Flow::CreatePreset) {
+      Presets p(state.presetName);
+      p.setCoffee(state.roastType, state.coffeeStrength, state.coffeeCups);
+      state.presets.addPreset(p);
+      state.summary = "Preset saved: " + state.presetName + "\n\n" +
+                      buildCoffeeSummary(state, r);
     } else {
-      summary = buildCoffeeSummary(roastType, coffeeStrength, r);
+      state.summary = buildCoffeeSummary(state, r);
     }
-    screen = SCREEN_SUMMARY;
+    state.screen = Screen::Summary;
     return true;
   };
 
   auto computeLatte = [&]() -> bool {
     LatteResult r;
-    if (!calcLatteFromShots(latteStrength, latteShotSize, latteShots, r))
+    if (!calcLatteFromShots(state.latteStrength, state.latteShotSize,
+                            state.latteShots, r))
       return false;
 
-    if (toLowerCopy(latteMilkStyle) != "none") {
+    if (toLowerCopy(state.latteMilkStyle) != "none") {
       r.hasMilkTarget = true;
-      r.milkStyle = latteMilkStyle;
-      r.milkToEspRatio = latteMilkRatio;
+      r.milkStyle = state.latteMilkStyle;
+      r.milkToEspRatio = state.latteMilkRatio;
       r.milkML = r.espressoML * r.milkToEspRatio;
       r.milkCups = r.milkML / ML_PER_CUP;
       r.finalML = r.espressoML + r.milkML;
       r.finalCups = r.finalML / ML_PER_CUP;
     }
 
-    if (flow == FLOW_CREATE_PRESET) {
-      Presets p(presetName);
-      p.setLatte(latteShotSize, latteShots, latteStrength, latteMilkStyle,
-                 latteMilkRatio);
-      presets.addPreset(p);
-      summary = "Preset saved: " + presetName + "\n\n" +
-                buildLatteSummary(latteStrength, latteShotSize, latteShots,
-                                  latteMilkStyle, latteMilkRatio, r);
+    if (state.flow == Flow::CreatePreset) {
+      Presets p(state.presetName);
+      p.setLatte(state.latteShotSize, state.latteShots, state.latteStrength,
+                 state.latteMilkStyle, state.latteMilkRatio);
+      state.presets.addPreset(p);
+      state.summary = "Preset saved: " + state.presetName + "\n\n" +
+                      buildLatteSummary(state, r);
     } else {
-      summary = buildLatteSummary(latteStrength, latteShotSize, latteShots,
-                                  latteMilkStyle, latteMilkRatio, r);
+      state.summary = buildLatteSummary(state, r);
     }
-    screen = SCREEN_SUMMARY;
+    state.screen = Screen::Summary;
     return true;
   };
 
   auto startMakeFlow = [&]() {
-    flow = FLOW_MAKE;
-    setOptions(SCREEN_CHOOSE_DRINK, "Choose drink type", {"coffee", "latte"});
+    state.flow = Flow::Make;
+    setOptions(Screen::ChooseDrink, "Choose drink type", {"coffee", "latte"});
   };
 
   auto startCreatePresetFlow = [&]() {
-    flow = FLOW_CREATE_PRESET;
-    setText(SCREEN_PRESET_NAME, "Enter preset name (type, Enter to confirm)");
+    state.flow = Flow::CreatePreset;
+    setText(Screen::PresetName, "Enter preset name (type, Enter to confirm)");
   };
 
   auto startLoadPresetFlow = [&]() {
-    if (!presets.hasPresets()) {
-      message = "No presets saved yet.";
-      screen = SCREEN_ERROR;
+    if (!state.presets.hasPresets()) {
+      state.message = "No presets saved yet.";
+      state.screen = Screen::Error;
       return;
     }
-    flow = FLOW_LOAD_PRESET;
-    auto names = presets.getPresetNames();
-    setOptionsVec(SCREEN_LOAD_PRESET_LIST, "Select a preset to load", names);
+    state.flow = Flow::LoadPreset;
+    auto names = state.presets.getPresetNames();
+    setOptionsVec(Screen::LoadPresetList, "Select a preset to load", names);
   };
 
+  resetToMenu();
+
   auto goBack = [&]() {
-    if (history.empty())
+    if (state.history.empty())
       return;
-    int prev = history.back();
-    history.pop_back();
+    Screen prev = state.history.back();
+    state.history.pop_back();
     configureScreen(prev);
   };
 
   auto confirmSelection = [&]() {
-    message.clear();
-    if (screen == SCREEN_MAIN) {
-      if (selected == 0) {
+    state.message.clear();
+    switch (state.screen) {
+    case Screen::MainMenu:
+      if (state.selected == 0) {
         startMakeFlow();
-      } else if (selected == 1) {
+      } else if (state.selected == 1) {
         startCreatePresetFlow();
-      } else if (selected == 2) {
+      } else if (state.selected == 2) {
         startLoadPresetFlow();
       } else {
         shouldClose = true;
         window.close();
       }
-    } else if (screen == SCREEN_CHOOSE_DRINK) {
-      drinkType = toLowerCopy(options[selected]);
-      if (drinkType == "coffee") {
-        setOptions(SCREEN_COFFEE_ROAST, "Select roast",
+      break;
+    case Screen::ChooseDrink:
+      state.drinkType = toLowerCopy(state.options[state.selected]);
+      if (state.drinkType == "coffee") {
+        setOptions(Screen::CoffeeRoast, "Select roast",
                    {"light", "medium", "dark"});
       } else {
-        setOptions(SCREEN_LATTE_STRENGTH, "Latte strength",
+        setOptions(Screen::LatteStrength, "Latte strength",
                    {"stronger", "weaker"});
       }
-    } else if (screen == SCREEN_COFFEE_ROAST) {
-      roastType = toLowerCopy(options[selected]);
-      setOptions(SCREEN_COFFEE_STRENGTH, "Coffee strength",
+      break;
+    case Screen::CoffeeRoast:
+      state.roastType = toLowerCopy(state.options[state.selected]);
+      setOptions(Screen::CoffeeStrength, "Coffee strength",
                  {"bolder", "medium", "weaker"});
-    } else if (screen == SCREEN_COFFEE_STRENGTH) {
-      coffeeStrength = toLowerCopy(options[selected]);
-      setValue(SCREEN_COFFEE_CUPS, "Cups (Up/Down, Enter to confirm)", 1.0,
+      break;
+    case Screen::CoffeeStrength:
+      state.coffeeStrength = toLowerCopy(state.options[state.selected]);
+      setValue(Screen::CoffeeCups, "Cups (Up/Down, Enter to confirm)", 1.0,
                0.5, 0.5, "cups");
-    } else if (screen == SCREEN_LATTE_STRENGTH) {
-      latteStrength = toLowerCopy(options[selected]);
-      setOptions(SCREEN_LATTE_SHOT_SIZE, "Shot size", {"single", "double"});
-    } else if (screen == SCREEN_LATTE_SHOT_SIZE) {
-      latteShotSize = toLowerCopy(options[selected]);
-      setValue(SCREEN_LATTE_SHOTS, "Number of shots (Up/Down, Enter to confirm)",
+      break;
+    case Screen::LatteStrength:
+      state.latteStrength = toLowerCopy(state.options[state.selected]);
+      setOptions(Screen::LatteShotSize, "Shot size", {"single", "double"});
+      break;
+    case Screen::LatteShotSize:
+      state.latteShotSize = toLowerCopy(state.options[state.selected]);
+      setValue(Screen::LatteShots, "Number of shots (Up/Down, Enter to confirm)",
                1, 1, 1, "shots");
-    } else if (screen == SCREEN_LATTE_MILK_STYLE) {
-      latteMilkStyle = toLowerCopy(options[selected]);
-      double ratio = milkStyleToRatio(latteMilkStyle);
+      break;
+    case Screen::LatteMilkStyle: {
+      state.latteMilkStyle = toLowerCopy(state.options[state.selected]);
+      double ratio = milkStyleToRatio(state.latteMilkStyle);
       if (ratio == -1.0) {
-        needsCustomRatio = true;
-        setValue(SCREEN_LATTE_MILK_RATIO,
+        state.needsCustomRatio = true;
+        setValue(Screen::LatteMilkRatio,
                  "Custom milk:espresso ratio (Up/Down, Enter)", 2.0, 0.1, 0.0,
                  "ratio");
       } else {
-        needsCustomRatio = false;
-        latteMilkRatio = ratio;
+        state.needsCustomRatio = false;
+        state.latteMilkRatio = ratio;
         computeLatte();
       }
-    } else if (screen == SCREEN_LOAD_PRESET_LIST) {
-      if (!options.empty()) {
-        std::string name = options[selected];
-        Presets *p = presets.getPresetByName(name);
+      break;
+    }
+    case Screen::LoadPresetList:
+      if (!state.options.empty()) {
+        std::string name = state.options[state.selected];
+        Presets *p = state.presets.getPresetByName(name);
         if (!p) {
-          message = "Preset not found.";
-          screen = SCREEN_ERROR;
-        } else if (p->getDrinkType() == "coffee") {
-          roastType = p->getRoast();
-          coffeeStrength = p->getStrength();
-          coffeeCups = p->getCups();
+          state.message = "Preset not found.";
+          state.screen = Screen::Error;
+          break;
+        }
+
+        if (p->getDrinkType() == "coffee") {
+          state.roastType = p->getRoast();
+          state.coffeeStrength = p->getStrength();
+          state.coffeeCups = p->getCups();
           if (!computeCoffee()) {
-            message = "Error loading preset.";
-            screen = SCREEN_ERROR;
+            state.message = "Error loading preset.";
+            state.screen = Screen::Error;
           }
         } else {
-          latteShotSize = p->getShotSize();
-          latteShots = p->getShots();
-          latteStrength = p->getLatteStrength();
-          latteMilkStyle = p->getMilkStyle();
-          latteMilkRatio = p->getMilkRatio();
+          state.latteShotSize = p->getShotSize();
+          state.latteShots = p->getShots();
+          state.latteStrength = p->getLatteStrength();
+          state.latteMilkStyle = p->getMilkStyle();
+          state.latteMilkRatio = p->getMilkRatio();
           if (!computeLatte()) {
-            message = "Error loading preset.";
-            screen = SCREEN_ERROR;
+            state.message = "Error loading preset.";
+            state.screen = Screen::Error;
           }
         }
       }
-    } else if (screen == SCREEN_SUMMARY || screen == SCREEN_ERROR) {
+      break;
+    case Screen::Summary:
+    case Screen::Error:
       resetToMenu();
+      break;
+    default:
+      break;
     }
   };
 
   auto confirmValue = [&]() {
-    if (screen == SCREEN_COFFEE_CUPS) {
-      coffeeCups = value;
+    switch (state.screen) {
+    case Screen::CoffeeCups:
+      state.coffeeCups = state.value;
       if (!computeCoffee()) {
-        message = "Calculation error.";
-        screen = SCREEN_ERROR;
+        state.message = "Calculation error.";
+        state.screen = Screen::Error;
       }
-    } else if (screen == SCREEN_LATTE_SHOTS) {
-      latteShots = static_cast<int>(value);
-      setOptions(SCREEN_LATTE_MILK_STYLE, "Milk style",
+      break;
+    case Screen::LatteShots:
+      state.latteShots = static_cast<int>(state.value);
+      setOptions(Screen::LatteMilkStyle, "Milk style",
                  {"none", "cortado", "flatwhite", "latte", "custom"});
-    } else if (screen == SCREEN_LATTE_MILK_RATIO) {
-      latteMilkRatio = value;
+      break;
+    case Screen::LatteMilkRatio:
+      state.latteMilkRatio = state.value;
       if (!computeLatte()) {
-        message = "Calculation error.";
-        screen = SCREEN_ERROR;
+        state.message = "Calculation error.";
+        state.screen = Screen::Error;
       }
+      break;
+    default:
+      break;
     }
   };
 
   auto confirmText = [&]() {
-    if (screen == SCREEN_PRESET_NAME) {
-      if (textInput.empty()) {
-        message = "Preset name cannot be empty.";
+    switch (state.screen) {
+    case Screen::PresetName:
+      if (state.textInput.empty()) {
+        state.message = "Preset name cannot be empty.";
       } else {
-        presetName = textInput;
-        setOptions(SCREEN_CHOOSE_DRINK, "Choose drink type",
+        state.presetName = state.textInput;
+        setOptions(Screen::ChooseDrink, "Choose drink type",
                    {"coffee", "latte"});
       }
+      break;
+    default:
+      break;
     }
   };
 
@@ -534,37 +571,38 @@ int runGui() {
           goBack();
         } else if (event.key.code == sf::Keyboard::Escape) {
           resetToMenu();
-        } else if (valueMode) {
+        } else if (state.valueMode) {
           if (event.key.code == sf::Keyboard::Up) {
-            value += step;
+            state.value += state.step;
           } else if (event.key.code == sf::Keyboard::Down) {
-            value = std::max(minValue, value - step);
+            state.value = std::max(state.minValue, state.value - state.step);
           } else if (event.key.code == sf::Keyboard::Enter ||
                      event.key.code == sf::Keyboard::Return) {
             confirmValue();
           }
-        } else if (textMode) {
+        } else if (state.textMode) {
           if (event.key.code == sf::Keyboard::BackSpace) {
-            if (!textInput.empty())
-              textInput.pop_back();
+            if (!state.textInput.empty())
+              state.textInput.pop_back();
           } else if (event.key.code == sf::Keyboard::Enter ||
                      event.key.code == sf::Keyboard::Return) {
             confirmText();
           }
         } else {
-          if (event.key.code == sf::Keyboard::Up && !options.empty()) {
-            selected = (selected == 0) ? options.size() - 1 : selected - 1;
+          if (event.key.code == sf::Keyboard::Up && !state.options.empty()) {
+            state.selected = (state.selected == 0) ? state.options.size() - 1
+                                                   : state.selected - 1;
           } else if (event.key.code == sf::Keyboard::Down &&
-                     !options.empty()) {
-            selected = (selected + 1) % options.size();
+                     !state.options.empty()) {
+            state.selected = (state.selected + 1) % state.options.size();
           } else if (event.key.code == sf::Keyboard::Enter ||
                      event.key.code == sf::Keyboard::Return) {
             confirmSelection();
           }
         }
-      } else if (event.type == sf::Event::TextEntered && textMode) {
+      } else if (event.type == sf::Event::TextEntered && state.textMode) {
         if (event.text.unicode >= 32 && event.text.unicode < 127) {
-          textInput.push_back(static_cast<char>(event.text.unicode));
+          state.textInput.push_back(static_cast<char>(event.text.unicode));
         }
       }
     }
@@ -578,29 +616,30 @@ int runGui() {
     centerHoriz(title, 40.0f, window.getSize().x);
     window.draw(title);
 
-    sf::Text promptText = makeText(font, prompt, 18);
+    sf::Text promptText = makeText(font, state.prompt, 18);
     centerHoriz(promptText, 110.0f, window.getSize().x);
     window.draw(promptText);
 
-    if (!message.empty()) {
-      sf::Text msg = makeText(font, message, 16);
+    if (!state.message.empty()) {
+      sf::Text msg = makeText(font, state.message, 16);
       msg.setFillColor(sf::Color(255, 120, 120));
       centerHoriz(msg, 150.0f, window.getSize().x);
       window.draw(msg);
     }
 
-    if (screen == SCREEN_SUMMARY) {
-      sf::Text sum = makeText(font, summary, 16);
+    if (state.screen == Screen::Summary) {
+      sf::Text sum = makeText(font, state.summary, 16);
       sum.setPosition(
-          window.getSize().x / 2.0f - sum.getLocalBounds().width / 2.0f,
-          180.0f);
+          window.getSize().x / 2.0f - sum.getLocalBounds().width / 2.0f, 180.0f);
       window.draw(sum);
       sf::Text hint =
           makeText(font, "Enter to return to menu, Esc to restart", 14);
       centerHoriz(hint, 330.0f, window.getSize().x);
       window.draw(hint);
-    } else if (valueMode) {
-      std::string valueStr = valueLabel + ": " + std::to_string(value);
+    } else if (state.valueMode) {
+      std::ostringstream oss;
+      oss << std::fixed << std::setprecision(2) << state.value;
+      std::string valueStr = state.valueLabel + ": " + oss.str();
       sf::Text v = makeText(font, valueStr, 20);
       centerHoriz(v, 200.0f, window.getSize().x);
       window.draw(v);
@@ -609,8 +648,8 @@ int runGui() {
                    14);
       centerHoriz(hint, 240.0f, window.getSize().x);
       window.draw(hint);
-    } else if (textMode) {
-      std::string display = textInput.empty() ? "_" : textInput;
+    } else if (state.textMode) {
+      std::string display = state.textInput.empty() ? "_" : state.textInput;
       sf::Text t = makeText(font, display, 20);
       centerHoriz(t, 200.0f, window.getSize().x);
       window.draw(t);
@@ -618,8 +657,8 @@ int runGui() {
           makeText(font, "Type to edit, Enter to confirm, Esc to restart", 14);
       centerHoriz(hint, 240.0f, window.getSize().x);
       window.draw(hint);
-    } else if (!options.empty()) {
-      drawOptions(window, font, options, selected, 170.0f);
+    } else if (!state.options.empty()) {
+      drawOptions(window, font, state.options, state.selected, 170.0f);
       sf::Text hint =
           makeText(font, "Up/Down to move, Enter to confirm, Esc to restart",
                    14);
