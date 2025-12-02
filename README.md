@@ -27,12 +27,6 @@ Interactive calculator that determines coffee/water ratios for brewed coffee or 
 - Windows console (MSYS2 MinGW64 shell): `g++ -std=c++17 -Wall -g -Iinclude src/*.cpp -o bin/final_project.exe`
 - Windows GUI (MSYS2 MinGW64 shell, SFML installed): `g++ -std=c++17 -Wall -g -Iinclude src/*.cpp -lsfml-graphics -lsfml-window -lsfml-system -o bin/final_project_gui.exe`
 
-### Run Commands (per OS and mode)
-- Linux/macOS console: `./bin/final_project`
-- Linux/macOS GUI: `./bin/final_project_gui` (after SFML install)
-- Windows console (cmd/PowerShell): `.\bin\final_project.exe`
-- Windows GUI (cmd/PowerShell): `.\bin\final_project_gui.exe` (after SFML install)
-
 ### Requirements
 - C++ compiler with C++17 support (g++ or MinGW-w64 g++)
 - GNU Make (Linux/macOS) or mingw32-make (Windows)
@@ -92,9 +86,17 @@ make run-gui    # Build and run GUI
 
 ## Running the Program
 ```bash
+# Linux/macOS console
 ./bin/final_project
-# Windows
+
+# Linux/macOS GUI (after SFML install)
+./bin/final_project_gui
+
+# Windows console (cmd/PowerShell)
 .\bin\final_project.exe
+
+# Windows GUI (cmd/PowerShell, after SFML install)
+.\bin\final_project_gui.exe
 ```
 
 ## Project Structure
