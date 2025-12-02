@@ -40,6 +40,12 @@ Linux (Ubuntu/Debian):
 - Optional GUI (SFML 2.5+):
   - `sudo apt-get install -y libsfml-dev`
 
+macOS:
+- Install Xcode Command Line Tools:
+  - `xcode-select --install`
+- Optional GUI (SFML 2.5+ via Homebrew):
+  - `brew install sfml`
+
 Windows (MSYS2 MinGW64 shell):
 - Install toolchain:
   - `pacman -S --needed base-devel mingw-w64-x86_64-toolchain`
@@ -57,6 +63,9 @@ make help       # Show available targets
 mingw32-make    # Build -> bin\final_project.exe
 mingw32-make run
 mingw32-make clean
+
+# macOS (Terminal with Xcode CLT and optional Homebrew SFML)
+# If SFML installed via Homebrew, it will be picked up by default brew paths.
 
 # Optional SFML GUI window (after installing SFML):
 make gui        # Build -> bin/final_project_gui
