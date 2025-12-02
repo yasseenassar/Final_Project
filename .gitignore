@@ -1,0 +1,29 @@
+# Build artifacts
+bin/
+build/
+*.o
+*.out
+*.exe
+
+# Executable
+final_project
+
+# Editor/IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# CMake (if regenerated)
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile.bak
+
+# Debug files
+*.dSYM/
+*.su
+*.idb
+*.pdb
