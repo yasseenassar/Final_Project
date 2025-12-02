@@ -22,12 +22,12 @@ Interactive calculator that determines coffee/water ratios for brewed coffee or 
 ## Building the Project
 
 ### Option 1: Direct `g++` (no make required)
-- Linux/macOS console: `g++ -std=c++17 -Wall -g -Iinclude src/*.cpp -o bin/final_project`
-- Linux/macOS GUI (requires SFML): `g++ -std=c++17 -Wall -g -Iinclude src/*.cpp -lsfml-graphics -lsfml-window -lsfml-system -o bin/final_project_gui`
-- Windows console (MSYS2 MinGW64 shell): `g++ -std=c++17 -Wall -g -Iinclude src/*.cpp -o bin/final_project.exe`
-- Windows GUI (MSYS2 MinGW64 shell, SFML installed): `g++ -std=c++17 -Wall -g -Iinclude src/*.cpp -lsfml-graphics -lsfml-window -lsfml-system -o bin/final_project_gui.exe`
+- Linux/macOS console: `g++ -std=c++17 -Wall -g -Iinclude src/*.cpp -o final_project`
+- Linux/macOS GUI (requires SFML): `g++ -std=c++17 -Wall -g -Iinclude src/*.cpp -lsfml-graphics -lsfml-window -lsfml-system -o final_project_gui`
+- Windows console (MSYS2 MinGW64 shell): `g++ -std=c++17 -Wall -g -Iinclude src/*.cpp -o final_project.exe`
+- Windows GUI (MSYS2 MinGW64 shell, SFML installed): `g++ -std=c++17 -Wall -g -Iinclude src/*.cpp -lsfml-graphics -lsfml-window -lsfml-system -o final_project_gui.exe`
 
-### Option 2: Using Make (requires make/mingw32-make)
+### Option 2: Using Make (requires make/mingw32-make; creates bin/build folders)
 - Linux/macOS:
   - `make` (build console)
   - `make run` (build + run console)
