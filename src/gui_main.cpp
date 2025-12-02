@@ -4,12 +4,10 @@
 #include "presets.hpp"
 #include "presetsManager.hpp"
 #include <SFML/Graphics.hpp>
-#include <sstream>
 #include <iomanip>
+#include <sstream>
 #include <string>
 #include <vector>
-#include <sstream>
-#include <iomanip>
 
 namespace {
 
@@ -567,7 +565,8 @@ int runGui() {
       if (event.type == sf::Event::Closed) {
         window.close();
       } else if (event.type == sf::Event::KeyPressed) {
-        if (event.key.code == sf::Keyboard::Left) {
+        if (event.key.code == sf::Keyboard::Left ||
+            event.key.code == sf::Keyboard::BackSpace) {
           goBack();
         } else if (event.key.code == sf::Keyboard::Escape) {
           resetToMenu();
@@ -659,9 +658,10 @@ int runGui() {
       window.draw(hint);
     } else if (!state.options.empty()) {
       drawOptions(window, font, state.options, state.selected, 170.0f);
-      sf::Text hint =
-          makeText(font, "Up/Down to move, Enter to confirm, Esc to restart",
-                   14);
+      sf::Text hint = makeText(
+          font,
+          "Up/Down to move, Enter to confirm, Left/backspace to go back, Esc to restart",
+          14);
       centerHoriz(hint, 330.0f, window.getSize().x);
       window.draw(hint);
     }
