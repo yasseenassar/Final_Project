@@ -1,13 +1,19 @@
-#include "gui.hpp"
-#include "constants.hpp"
-#include "functions.hpp"
-#include "presets.hpp"
-#include "presetsManager.hpp"
 #include <SFML/Graphics.hpp>
-#include <iomanip>
-#include <sstream>
+#include <SFML/Window.hpp>
+#include <SFML/System.hpp>
 #include <string>
 #include <vector>
+#include <sstream>
+#include <iomanip>
+#include <iostream>
+#include <algorithm>
+#include <functional>
+
+#include "functions.hpp"
+#include "presets.hpp"
+#include "presetManager.hpp"
+#include "addons.hpp"
+#include "constants.hpp"
 
 namespace {
 
@@ -26,9 +32,24 @@ enum class Screen {
   LatteMilkRatio,
   PresetName,
   LoadPresetList,
+  AddonsPrompt,
+  AddonsList,
+  ToppingInput,
+  ExtraShotsInput,
   Summary,
   Error
 };
+
+/******************************************************************
+ * Function: formatDouble
+ * ---------------------------------------------------------------
+ * Formats a double to 2 decimal places.
+ ******************************************************************/
+std::string formatDouble(double x) {
+  std::ostringstream oss;
+  oss << std::fixed << std::setprecision(2) << x;
+  return oss.str();
+}
 
 /******************************************************************
  * Function: loadFont
@@ -43,8 +64,8 @@ bool loadFont(sf::Font &font) {
       "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
       "/usr/local/share/fonts/DejaVuSans.ttf",
       "C:\\\\Windows\\\\Fonts\\\\arial.ttf"};
-  for (const auto &path : candidates) {
-    if (font.loadFromFile(path))
+  for (const std::string &path : candidates) {
+    if (font.openFromFile(path))
       return true;
   }
   return false;
@@ -56,7 +77,7 @@ bool loadFont(sf::Font &font) {
  * Builds an SFML text object with the default light color.
  ******************************************************************/
 sf::Text makeText(const sf::Font &font, const std::string &str, unsigned size) {
-  sf::Text t(str, font, size);
+  sf::Text t(font, str, size);
   t.setFillColor(sf::Color(240, 240, 240));
   return t;
 }
@@ -68,8 +89,8 @@ sf::Text makeText(const sf::Font &font, const std::string &str, unsigned size) {
  ******************************************************************/
 void centerHoriz(sf::Text &text, float y, float width) {
   sf::FloatRect b = text.getLocalBounds();
-  text.setOrigin(b.left + b.width / 2.0f, b.top + b.height / 2.0f);
-  text.setPosition(width / 2.0f, y);
+  text.setOrigin({b.position.x + b.size.x / 2.0f, b.position.y + b.size.y / 2.0f});
+  text.setPosition({width / 2.0f, y});
 }
 
 /******************************************************************
@@ -86,13 +107,13 @@ void drawOptions(sf::RenderWindow &window, const sf::Font &font,
     sf::FloatRect b = t.getLocalBounds();
     if (i == selected) {
       sf::RectangleShape bg(
-          sf::Vector2f(b.width + 24.0f, b.height + 14.0f));
+          sf::Vector2f(b.size.x + 24.0f, b.size.y + 14.0f));
       bg.setFillColor(sf::Color(60, 90, 160));
-      bg.setOrigin(bg.getSize().x / 2.0f, bg.getSize().y / 2.0f);
-      bg.setPosition(window.getSize().x / 2.0f, y + b.height / 2.0f);
+      bg.setOrigin({bg.getSize().x / 2.0f, bg.getSize().y / 2.0f});
+      bg.setPosition({window.getSize().x / 2.0f, y + b.size.y / 2.0f});
       window.draw(bg);
     }
-    centerHoriz(t, y + b.height / 2.0f, window.getSize().x);
+    centerHoriz(t, y + b.size.y / 2.0f, window.getSize().x);
     window.draw(t);
     y += 38.0f;
   }
@@ -133,6 +154,11 @@ struct UiState {
   double latteMilkRatio = 0.0;
   bool needsCustomRatio = false;
 
+  // addons
+  bool isIced = false;
+  std::string topping;
+  int extraShots = 0;
+
   // presets
   std::string presetName;
   PresetManager presets;
@@ -145,18 +171,15 @@ struct UiState {
  * Formats a coffee result into a multi-line summary string.
  ******************************************************************/
 std::string buildCoffeeSummary(const UiState &state, const CoffeeResult &r) {
-  auto fd = [](double x) {
-    std::ostringstream oss;
-    oss << std::fixed << std::setprecision(2) << x;
-    return oss.str();
-  };
   std::string s;
   s += "Coffee Summary\n";
   s += "Roast: " + state.roastType + "\n";
   s += "Strength: " + state.coffeeStrength + " (1:" +
        std::to_string(static_cast<int>(r.ratio)) + ")\n";
-  s += "Water: " + fd(r.waterML) + " mL\n";
-  s += "Coffee: " + fd(r.coffeeGrams) + " g (" + fd(r.tablespoons) + " tbsp)";
+  s += "Water: " + formatDouble(r.waterML) + " mL\n";
+  s += "Coffee: " + formatDouble(r.coffeeGrams) + " g (" + formatDouble(r.tablespoons) + " tbsp)\n";
+  if (state.isIced) s += "Addons: Iced\n";
+  if (!state.topping.empty()) s += "Topping: " + state.topping;
   return s;
 }
 
@@ -166,22 +189,20 @@ std::string buildCoffeeSummary(const UiState &state, const CoffeeResult &r) {
  * Formats a latte result into a multi-line summary string.
  ******************************************************************/
 std::string buildLatteSummary(const UiState &state, const LatteResult &r) {
-  auto fd = [](double x) {
-    std::ostringstream oss;
-    oss << std::fixed << std::setprecision(2) << x;
-    return oss.str();
-  };
   std::string s;
   s += "Latte Summary\n";
   s += "Strength: " + state.latteStrength + "\n";
   s += "Shots: " + std::to_string(state.latteShots) + " x " +
        state.latteShotSize + "\n";
-  s += "Coffee: " + fd(r.coffeeGrams) + " g (" + fd(r.tablespoons) + " tbsp)\n";
-  s += "Espresso: " + fd(r.espressoML) + " mL\n";
+  s += "Coffee: " + formatDouble(r.coffeeGrams) + " g (" + formatDouble(r.tablespoons) + " tbsp)\n";
+  s += "Espresso: " + formatDouble(r.espressoML) + " mL\n";
   if (r.hasMilkTarget) {
-    s += "Milk: " + fd(r.milkML) + " mL (style " + state.latteMilkStyle + ")\n";
-    s += "Final: " + fd(r.finalML) + " mL";
+    s += "Milk: " + formatDouble(r.milkML) + " mL (style " + state.latteMilkStyle + ")\n";
+    s += "Final: " + formatDouble(r.finalML) + " mL\n";
   }
+  if (state.isIced) s += "Addons: Iced\n";
+  if (state.extraShots > 0) s += "Extra Shots: " + std::to_string(state.extraShots) + "\n";
+  if (!state.topping.empty()) s += "Topping: " + state.topping;
   return s;
 }
 
@@ -197,7 +218,7 @@ std::string buildLatteSummary(const UiState &state, const LatteResult &r) {
  *   0 on normal exit.
  ******************************************************************/
 int runGui() {
-  sf::RenderWindow window(sf::VideoMode(760, 540), "Coffee & Latte Calculator",
+  sf::RenderWindow window(sf::VideoMode({760, 540}), "Coffee & Latte Calculator",
                           sf::Style::Titlebar | sf::Style::Close);
   window.setFramerateLimit(60);
 
@@ -208,19 +229,21 @@ int runGui() {
   UiState state;
   bool shouldClose = false;
 
-  auto pushHistory = [&]() {
+  std::function<void()> pushHistory = [&]() {
     if (state.screen != Screen::Summary && state.screen != Screen::Error &&
         state.screen != Screen::MainMenu) {
       state.history.push_back(state.screen);
     }
   };
 
-  auto configureScreen = [&](Screen s) {
+  std::function<void(Screen)> configureScreen = [&](Screen s) {
     state.screen = s;
     state.valueMode = false;
     state.textMode = false;
     state.options.clear();
     state.message.clear();
+    // Don't clear addons here, as we might be navigating back/forth within a flow
+    // But do clear them when starting a new flow (handled in startMakeFlow)
     switch (s) {
     case Screen::MainMenu:
       state.prompt = "Select an action";
@@ -311,14 +334,42 @@ int runGui() {
       state.selected = 0;
       break;
     }
+    case Screen::AddonsPrompt:
+      state.prompt = "Add addons? (Ice, Toppings, etc)";
+      state.options = {"No", "Yes"};
+      state.selected = 0;
+      break;
+    case Screen::AddonsList:
+      state.prompt = "Select Addon";
+      if (state.drinkType == "coffee") {
+        state.options = {"Ice (Cold Drink)", "Topping", "Done"};
+      } else {
+        state.options = {"Ice (Cold Drink)", "Topping", "Extra Shots", "Done"};
+      }
+      state.selected = 0;
+      break;
+    case Screen::ToppingInput:
+      state.prompt = "Enter topping name (type, Enter)";
+      state.textMode = true;
+      state.textInput = state.topping;
+      break;
+    case Screen::ExtraShotsInput:
+      state.prompt = "Extra shots (Up/Down, Enter)";
+      state.valueMode = true;
+      state.valueLabel = "extra";
+      state.value = (state.extraShots > 0) ? state.extraShots : 1;
+      state.step = 1;
+      state.minValue = 1;
+      break;
     case Screen::Summary:
     case Screen::Error:
       break;
     }
   };
 
-  auto setOptions = [&](Screen s, const std::string &prompt,
-                        std::initializer_list<std::string> opts) {
+  std::function<void(Screen, const std::string &, std::initializer_list<std::string>)>
+      setOptions = [&](Screen s, const std::string &prompt,
+                       std::initializer_list<std::string> opts) {
     pushHistory();
     state.screen = s;
     state.prompt = prompt;
@@ -330,8 +381,9 @@ int runGui() {
     state.message.clear();
   };
 
-  auto setOptionsVec = [&](Screen s, const std::string &prompt,
-                           const std::vector<std::string> &opts) {
+  std::function<void(Screen, const std::string &, const std::vector<std::string> &)>
+      setOptionsVec = [&](Screen s, const std::string &prompt,
+                          const std::vector<std::string> &opts) {
     pushHistory();
     state.screen = s;
     state.prompt = prompt;
@@ -343,8 +395,9 @@ int runGui() {
     state.message.clear();
   };
 
-  auto setValue = [&](Screen s, const std::string &prompt, double start,
-                      double step, double min, const std::string &label) {
+  std::function<void(Screen, const std::string &, double, double, double, const std::string &)>
+      setValue = [&](Screen s, const std::string &prompt, double start,
+                     double step, double min, const std::string &label) {
     pushHistory();
     state.screen = s;
     state.prompt = prompt;
@@ -358,7 +411,7 @@ int runGui() {
     state.message.clear();
   };
 
-  auto setText = [&](Screen s, const std::string &prompt) {
+  std::function<void(Screen, const std::string &)> setText = [&](Screen s, const std::string &prompt) {
     pushHistory();
     state.screen = s;
     state.prompt = prompt;
@@ -369,7 +422,7 @@ int runGui() {
     state.message.clear();
   };
 
-  auto resetToMenu = [&]() {
+  std::function<void()> resetToMenu = [&]() {
     Flow prev = state.flow;
     state = UiState();
     state.flow = Flow::None;
@@ -380,10 +433,15 @@ int runGui() {
     }
   };
 
-  auto computeCoffee = [&]() -> bool {
+  std::function<bool()> computeCoffee = [&]() -> bool {
     CoffeeResult r;
     if (!calcCoffee(state.coffeeStrength, state.roastType, state.coffeeCups, r))
       return false;
+
+    if (!calcCoffee(state.coffeeStrength, state.roastType, state.coffeeCups, r))
+      return false;
+
+    applyCoffeeAddons(r, state.isIced, state.topping);
 
     if (state.flow == Flow::CreatePreset) {
       Presets p(state.presetName);
@@ -398,11 +456,13 @@ int runGui() {
     return true;
   };
 
-  auto computeLatte = [&]() -> bool {
+  std::function<bool()> computeLatte = [&]() -> bool {
     LatteResult r;
     if (!calcLatteFromShots(state.latteStrength, state.latteShotSize,
                             state.latteShots, r))
       return false;
+
+    applyLatteAddons(r, state.isIced, state.extraShots, state.topping);
 
     if (toLowerCopy(state.latteMilkStyle) != "none") {
       r.hasMilkTarget = true;
@@ -428,30 +488,34 @@ int runGui() {
     return true;
   };
 
-  auto startMakeFlow = [&]() {
+  std::function<void()> startMakeFlow = [&]() {
     state.flow = Flow::Make;
+    // Reset addon state
+    state.isIced = false;
+    state.topping.clear();
+    state.extraShots = 0;
     setOptions(Screen::ChooseDrink, "Choose drink type", {"coffee", "latte"});
   };
 
-  auto startCreatePresetFlow = [&]() {
+  std::function<void()> startCreatePresetFlow = [&]() {
     state.flow = Flow::CreatePreset;
     setText(Screen::PresetName, "Enter preset name (type, Enter to confirm)");
   };
 
-  auto startLoadPresetFlow = [&]() {
+  std::function<void()> startLoadPresetFlow = [&]() {
     if (!state.presets.hasPresets()) {
       state.message = "No presets saved yet.";
       state.screen = Screen::Error;
       return;
     }
     state.flow = Flow::LoadPreset;
-    auto names = state.presets.getPresetNames();
+    std::vector<std::string> names = state.presets.getPresetNames();
     setOptionsVec(Screen::LoadPresetList, "Select a preset to load", names);
   };
 
   resetToMenu();
 
-  auto goBack = [&]() {
+  std::function<void()> goBack = [&]() {
     if (state.history.empty())
       return;
     Screen prev = state.history.back();
@@ -459,7 +523,7 @@ int runGui() {
     configureScreen(prev);
   };
 
-  auto confirmSelection = [&]() {
+  std::function<void()> confirmSelection = [&]() {
     state.message.clear();
     switch (state.screen) {
     case Screen::MainMenu:
@@ -494,6 +558,10 @@ int runGui() {
       setValue(Screen::CoffeeCups, "Cups (Up/Down, Enter to confirm)", 1.0,
                0.5, 0.5, "cups");
       break;
+    case Screen::CoffeeCups:
+      state.coffeeCups = state.value;
+      setOptions(Screen::AddonsPrompt, "Add addons?", {"No", "Yes"});
+      break;
     case Screen::LatteStrength:
       state.latteStrength = toLowerCopy(state.options[state.selected]);
       setOptions(Screen::LatteShotSize, "Shot size", {"single", "double"});
@@ -514,7 +582,31 @@ int runGui() {
       } else {
         state.needsCustomRatio = false;
         state.latteMilkRatio = ratio;
-        computeLatte();
+        state.latteMilkRatio = ratio;
+        setOptions(Screen::AddonsPrompt, "Add addons?", {"No", "Yes"});
+      }
+      break;
+    }
+    case Screen::AddonsPrompt:
+      if (state.selected == 1) { // Yes
+        configureScreen(Screen::AddonsList);
+      } else { // No
+        if (state.drinkType == "coffee") computeCoffee();
+        else computeLatte();
+      }
+      break;
+    case Screen::AddonsList: {
+      std::string choice = state.options[state.selected];
+      if (choice == "Done") {
+        if (state.drinkType == "coffee") computeCoffee();
+        else computeLatte();
+      } else if (choice == "Ice (Cold Drink)") {
+        state.isIced = !state.isIced; // Toggle
+        state.message = state.isIced ? "Drink is now Iced" : "Drink is now Hot";
+      } else if (choice == "Topping") {
+        setText(Screen::ToppingInput, "Enter topping name");
+      } else if (choice == "Extra Shots") {
+        setValue(Screen::ExtraShotsInput, "Extra shots", 1, 1, 1, "extra");
       }
       break;
     }
@@ -558,14 +650,13 @@ int runGui() {
     }
   };
 
-  auto confirmValue = [&]() {
+  std::function<void()> confirmValue = [&]() {
     switch (state.screen) {
+      break;
     case Screen::CoffeeCups:
+      // Handled in confirmSelection now to flow to addons
       state.coffeeCups = state.value;
-      if (!computeCoffee()) {
-        state.message = "Calculation error.";
-        state.screen = Screen::Error;
-      }
+      setOptions(Screen::AddonsPrompt, "Add addons?", {"No", "Yes"});
       break;
     case Screen::LatteShots:
       state.latteShots = static_cast<int>(state.value);
@@ -578,13 +669,20 @@ int runGui() {
         state.message = "Calculation error.";
         state.screen = Screen::Error;
       }
+      // Instead of computing immediately, go to addons
+      setOptions(Screen::AddonsPrompt, "Add addons?", {"No", "Yes"});
+      break;
+    case Screen::ExtraShotsInput:
+      state.extraShots = static_cast<int>(state.value);
+      state.message = "Added " + std::to_string(state.extraShots) + " extra shots.";
+      goBack(); // Return to AddonsList
       break;
     default:
       break;
     }
   };
 
-  auto confirmText = [&]() {
+  std::function<void()> confirmText = [&]() {
     switch (state.screen) {
     case Screen::PresetName:
       if (state.textInput.empty()) {
@@ -595,54 +693,57 @@ int runGui() {
                    {"coffee", "latte"});
       }
       break;
+    case Screen::ToppingInput:
+      state.topping = state.textInput;
+      state.message = "Added topping: " + state.topping;
+      goBack(); // Return to AddonsList
+      break;
     default:
       break;
     }
   };
 
   while (window.isOpen()) {
-    sf::Event event{};
-    while (window.pollEvent(event)) {
-      if (event.type == sf::Event::Closed) {
+    while (const auto event = window.pollEvent()) {
+      if (event->is<sf::Event::Closed>()) {
         window.close();
-      } else if (event.type == sf::Event::KeyPressed) {
-        if (event.key.code == sf::Keyboard::Left ||
-            event.key.code == sf::Keyboard::BackSpace) {
+      } else if (const auto* keyPressed = event->getIf<sf::Event::KeyPressed>()) {
+        if (keyPressed->code == sf::Keyboard::Key::Left ||
+            keyPressed->code == sf::Keyboard::Key::Backspace) {
           goBack();
-        } else if (event.key.code == sf::Keyboard::Escape) {
+        } else if (keyPressed->code == sf::Keyboard::Key::Escape) {
           resetToMenu();
         } else if (state.valueMode) {
-          if (event.key.code == sf::Keyboard::Up) {
+          if (keyPressed->code == sf::Keyboard::Key::Up) {
             state.value += state.step;
-          } else if (event.key.code == sf::Keyboard::Down) {
+          } else if (keyPressed->code == sf::Keyboard::Key::Down) {
             state.value = std::max(state.minValue, state.value - state.step);
-          } else if (event.key.code == sf::Keyboard::Enter ||
-                     event.key.code == sf::Keyboard::Return) {
+          } else if (keyPressed->code == sf::Keyboard::Key::Enter) {
             confirmValue();
           }
         } else if (state.textMode) {
-          if (event.key.code == sf::Keyboard::BackSpace) {
+          if (keyPressed->code == sf::Keyboard::Key::Backspace) {
             if (!state.textInput.empty())
               state.textInput.pop_back();
-          } else if (event.key.code == sf::Keyboard::Enter ||
-                     event.key.code == sf::Keyboard::Return) {
+          } else if (keyPressed->code == sf::Keyboard::Key::Enter) {
             confirmText();
           }
         } else {
-          if (event.key.code == sf::Keyboard::Up && !state.options.empty()) {
+          if (keyPressed->code == sf::Keyboard::Key::Up && !state.options.empty()) {
             state.selected = (state.selected == 0) ? state.options.size() - 1
                                                    : state.selected - 1;
-          } else if (event.key.code == sf::Keyboard::Down &&
+          } else if (keyPressed->code == sf::Keyboard::Key::Down &&
                      !state.options.empty()) {
             state.selected = (state.selected + 1) % state.options.size();
-          } else if (event.key.code == sf::Keyboard::Enter ||
-                     event.key.code == sf::Keyboard::Return) {
+          } else if (keyPressed->code == sf::Keyboard::Key::Enter) {
             confirmSelection();
           }
         }
-      } else if (event.type == sf::Event::TextEntered && state.textMode) {
-        if (event.text.unicode >= 32 && event.text.unicode < 127) {
-          state.textInput.push_back(static_cast<char>(event.text.unicode));
+      } else if (const auto* textEntered = event->getIf<sf::Event::TextEntered>()) {
+        if (state.textMode) {
+          if (textEntered->unicode >= 32 && textEntered->unicode < 127) {
+            state.textInput.push_back(static_cast<char>(textEntered->unicode));
+          }
         }
       }
     }
@@ -670,7 +771,7 @@ int runGui() {
     if (state.screen == Screen::Summary) {
       sf::Text sum = makeText(font, state.summary, 16);
       sum.setPosition(
-          window.getSize().x / 2.0f - sum.getLocalBounds().width / 2.0f, 180.0f);
+          {window.getSize().x / 2.0f - sum.getLocalBounds().size.x / 2.0f, 180.0f});
       window.draw(sum);
       sf::Text hint =
           makeText(font, "Enter to return to menu, Esc to restart", 14);

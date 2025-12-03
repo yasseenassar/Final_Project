@@ -43,7 +43,7 @@ Interactive calculator that determines coffee/water ratios for brewed coffee or 
 ### Requirements
 - C++ compiler with C++17 support (g++ or MinGW-w64 g++)
 - GNU Make (Linux/macOS) or mingw32-make (Windows) if using the Makefile
-- Optional for GUI: SFML 2.5+ (libsfml-dev on Ubuntu/Debian, Homebrew `sfml` on macOS, MSYS2/mingw-w64 packages on Windows)
+- Optional for GUI: SFML 3.0+ (libsfml-dev on Ubuntu/Debian, Homebrew `sfml` on macOS, MSYS2/mingw-w64 packages on Windows)
 
 Install SFML (GUI only):
 - Ubuntu/Debian: `sudo apt-get update && sudo apt-get install -y libsfml-dev`
@@ -56,19 +56,19 @@ Linux (Ubuntu/Debian):
 - Install build tools:
   - `sudo apt-get update`
   - `sudo apt-get install -y build-essential`
-- Optional GUI (SFML 2.5+):
+- Optional GUI (SFML 3.0+):
   - `sudo apt-get install -y libsfml-dev`
 
 macOS:
 - Install Xcode Command Line Tools:
   - `xcode-select --install`
-- Optional GUI (SFML 2.5+ via Homebrew):
+- Optional GUI (SFML 3.0+ via Homebrew):
   - `brew install sfml`
 
 Windows (MSYS2 MinGW64 shell):
 - Install toolchain:
   - `pacman -S --needed base-devel mingw-w64-x86_64-toolchain`
-- Optional GUI (SFML 2.5+):
+- Optional GUI (SFML 3.0+):
   - `pacman -S mingw-w64-x86_64-sfml`
 
 ## Running the Program
@@ -137,7 +137,7 @@ Follow the on-screen prompts to customize your drink parameters.
 - Cross-platform Makefile: Windows/Linux support with GUI targets; MinGW/SFML documented.
 - Header hygiene: removed `using namespace std` from headers and unused includes to avoid conflicts.
 - Input validation: added checks for menu/preset inputs; latte summary shows shot size correctly.
-- GUI: SFML interface with arrow-key navigation mirroring terminal flow; supports creating and loading presets; centered prompts/summaries.
+- GUI: Updated for SFML 3.0 compatibility (event handling, API changes) and fixed Windows build.
 - Preset manager: added `getPresetNames()` to list presets for GUI loading.
 - Docs/help: README and `make help` now include OS-specific build/run commands and copy-paste setup for Linux and Windows.
 - Cleanup: removed obsolete root-level duplicates of source/header files; canonical code lives in `src/` and `include/`.

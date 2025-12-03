@@ -1,7 +1,6 @@
 #include "functions.hpp"
 #include "constants.hpp"
-#include <algorithm> // for std::transform
-#include <cctype>    // for std::tolower
+#include <iostream>
 using namespace std;
 
 /******************************************************************
@@ -16,9 +15,9 @@ using namespace std;
  *   The lowercase version of the input string.
  ******************************************************************/
 string toLowerCopy(string s) {
-  transform(s.begin(), s.end(), s.begin(),
-            [](unsigned char c) { return static_cast<char>(tolower(c)); });
-  return s;
+    transform(s.begin(), s.end(), s.begin(),
+              [](unsigned char c){ return static_cast<char>(tolower(c)); });
+    return s;
 }
 
 /******************************************************************
@@ -32,7 +31,9 @@ string toLowerCopy(string s) {
  * Returns:
  *   Equivalent tablespoons of coffee grounds.
  ******************************************************************/
-double gramsToTablespoons(double grams) { return grams / GRAMS_PER_TBSP; }
+double gramsToTablespoons(double grams) {
+    return grams / GRAMS_PER_TBSP;
+}
 
 /******************************************************************
  * Function: milkStyleToRatio
@@ -46,19 +47,14 @@ double gramsToTablespoons(double grams) { return grams / GRAMS_PER_TBSP; }
  * Returns:
  *   Ratio as a double, or a negative code for special handling.
  ******************************************************************/
-double milkStyleToRatio(const string &styleIn) {
-  string s = toLowerCopy(styleIn);
-  if (s == "cortado")
-    return 1.0;
-  if (s == "flatwhite" || s == "flat_white")
-    return 2.0;
-  if (s == "latte")
-    return 3.0;
-  if (s == "none")
-    return 0.0;
-  if (s == "custom")
-    return -1.0;
-  return -2.0;
+double milkStyleToRatio(const string& styleIn) {
+    string s = toLowerCopy(styleIn);
+    if (s == "cortado") return 1.0;
+    if (s == "flatwhite" || s == "flat_white") return 2.0;
+    if (s == "latte") return 3.0;
+    if (s == "none") return 0.0;
+    if (s == "custom") return -1.0;
+    return -2.0;
 }
 
 /******************************************************************
@@ -76,35 +72,28 @@ double milkStyleToRatio(const string &styleIn) {
  * Returns:
  *   true if calculation successful, false if invalid input.
  ******************************************************************/
-bool calcCoffee(const string &strengthIn, const string &roastIn, double cups,
-                CoffeeResult &out) {
-  string strength = toLowerCopy(strengthIn);
-  string roast = toLowerCopy(roastIn);
+bool calcCoffee(const string& strengthIn, const string& roastIn,
+                double cups, CoffeeResult& out) {
+    string strength = toLowerCopy(strengthIn);
+    string roast    = toLowerCopy(roastIn);
 
-  double baseRatio = 0.0;
-  if (strength == "bolder")
-    baseRatio = 14.0;
-  else if (strength == "medium")
-    baseRatio = 16.0;
-  else if (strength == "weaker")
-    baseRatio = 18.0;
-  else
-    return false;
+    double baseRatio = 0.0;
+    if (strength == "bolder") baseRatio = 14.0;
+    else if (strength == "medium") baseRatio = 16.0;
+    else if (strength == "weaker") baseRatio = 18.0;
+    else return false;
 
-  if (roast == "light")
-    baseRatio += 1.0;
-  else if (roast == "dark")
-    baseRatio -= 1.0;
+    if (roast == "light") baseRatio += 1.0;
+    else if (roast == "dark") baseRatio -= 1.0;
 
-  if (cups <= 0.0)
-    return false;
+    if (cups <= 0.0) return false;
 
-  double waterML = cups * ML_PER_CUP;
-  double grams = waterML / baseRatio;
-  double tbsp = gramsToTablespoons(grams);
+    double waterML = cups * ML_PER_CUP;
+    double grams   = waterML / baseRatio;
+    double tbsp    = gramsToTablespoons(grams);
 
-  out = {cups, waterML, grams, baseRatio, tbsp};
-  return true;
+    out = {cups, waterML, grams, baseRatio, tbsp};
+    return true;
 }
 
 /******************************************************************
@@ -122,92 +111,83 @@ bool calcCoffee(const string &strengthIn, const string &roastIn, double cups,
  * Returns:
  *   true if calculation successful, false if invalid input.
  ******************************************************************/
-bool calcLatteFromShots(const string &strengthIn, const string &shotSizeIn,
-                        int shotCount, LatteResult &out) {
-  string strength = toLowerCopy(strengthIn);
-  string shotSize = toLowerCopy(shotSizeIn);
+bool calcLatteFromShots(const string& strengthIn, const string& shotSizeIn,
+                        int shotCount, LatteResult& out) {
+    string strength = toLowerCopy(strengthIn);
+    string shotSize = toLowerCopy(shotSizeIn);
 
-  if (shotCount <= 0)
-    return false;
+    if (shotCount <= 0) return false;
 
-  double gramsPerShot = 0.0;
-  if (shotSize == "single")
-    gramsPerShot = 8.0;
-  else if (shotSize == "double")
-    gramsPerShot = 16.0;
-  else
-    return false;
+    double gramsPerShot = 0.0;
+    if (shotSize == "single")      gramsPerShot = 8.0;
+    else if (shotSize == "double") gramsPerShot = 16.0;
+    else return false;
 
-  double brewRatio = 0.0;
-  if (strength == "stronger")
-    brewRatio = 2.0;
-  else if (strength == "weaker")
-    brewRatio = 2.5;
-  else
-    return false;
+    double brewRatio = 0.0;
+    if (strength == "stronger")      brewRatio = 2.0;
+    else if (strength == "weaker")   brewRatio = 2.5;
+    else return false;
 
-  double totalGrams = gramsPerShot * shotCount;
-  double espressoML = totalGrams * brewRatio;
-  double espressoCups = espressoML / ML_PER_CUP;
-  double tbsp = gramsToTablespoons(totalGrams);
+    double totalGrams   = gramsPerShot * shotCount;
+    double espressoML   = totalGrams * brewRatio;
+    double espressoCups = espressoML / ML_PER_CUP;
+    double tbsp         = gramsToTablespoons(totalGrams);
 
-  out = LatteResult(shotCount, shotSizeIn, totalGrams, brewRatio, espressoML,
-                    espressoCups, tbsp);
+    out = LatteResult(shotCount, shotSizeIn, totalGrams,
+                  brewRatio, espressoML, espressoCups, tbsp);
 
-  return true;
+    return true;
 }
+
 
 // constructors
 
-LatteResult::LatteResult()
-    : shots(0), shotSize(""), coffeeGrams(0.0), brewRatio(0.0), espressoML(0.0),
-      espressoCups(0.0), tablespoons(0.0), hasMilkTarget(false), milkStyle(""),
-      milkToEspRatio(0.0), milkML(0.0), milkCups(0.0), finalML(0.0),
-      finalCups(0.0) {}
+LatteResult::LatteResult() 
+    : shots(0), shotSize(""), coffeeGrams(0.0), brewRatio(0.0),
+      espressoML(0.0), espressoCups(0.0), tablespoons(0.0),
+      hasMilkTarget(false), milkStyle(""), milkToEspRatio(0.0),
+      milkML(0.0), milkCups(0.0), finalML(0.0), finalCups(0.0)
+{}
 
-LatteResult::LatteResult(int s, const std::string &size, double grams,
-                         double ratio, double espML, double espCups,
-                         double tbsp)
+LatteResult::LatteResult(int s, const std::string& size, double grams,
+            double ratio, double espML, double espCups, double tbsp)
     : shots(s), shotSize(size), coffeeGrams(grams), brewRatio(ratio),
       espressoML(espML), espressoCups(espCups), tablespoons(tbsp),
-      hasMilkTarget(false), milkStyle(""), milkToEspRatio(0.0), milkML(0.0),
-      milkCups(0.0), finalML(0.0), finalCups(0.0) {}
+      hasMilkTarget(false), milkStyle(""), milkToEspRatio(0.0),
+      milkML(0.0), milkCups(0.0), finalML(0.0), finalCups(0.0)
+{}
 
-void printCoffeeSummary(const CoffeeResult &r, const string &roastType,
-                        const string &strength) {
-  cout << "\n--- Coffee Summary ---\n";
-  cout << "Roast Type:         " << roastType << '\n';
-  cout << "Strength:           " << strength << " (1:" << r.ratio << ")\n";
-  cout << "Required Water:     " << r.waterCups << " cup(s) (" << r.waterML
-       << " mL)\n";
-  cout << "Coffee Grounds:     " << r.coffeeGrams << " g (" << r.tablespoons
-       << " tbsp)\n";
-  cout << "Enjoy your coffee!\n";
+void printCoffeeSummary(const CoffeeResult& r,
+                        const string& roastType,
+                        const string& strength)
+{
+    cout << "\n--- Coffee Summary ---\n";
+    cout << "Roast Type:         " << roastType << '\n';
+    cout << "Strength:           " << strength << " (1:" << r.ratio << ")\n";
+    cout << "Required Water:     " << r.waterCups << " cup(s) (" << r.waterML << " mL)\n";
+    cout << "Coffee Grounds:     " << r.coffeeGrams << " g (" << r.tablespoons << " tbsp)\n";
+    cout << "Enjoy your coffee!\n";
 }
 
-void printLatteSummary(const LatteResult &r, const string &strength,
-                       const string &shotSize) {
-  cout << "\n--- Latte Summary ---\n";
-  cout << "Strength (brew):      " << strength << " (espresso 1:" << r.brewRatio
-       << ")\n";
-  cout << "Shot Plan:            " << r.shots << " x " << r.shotSize
-       << " shot(s)\n";
-  cout << "Coffee Grounds:       " << r.coffeeGrams << " g (" << r.tablespoons
-       << " tbsp)\n";
-  cout << "Espresso Output:      " << r.espressoCups << " cup(s) ("
-       << r.espressoML << " mL)\n";
+void printLatteSummary(const LatteResult& r,
+                       const string& strength,
+                       const string& shotSize)
+{
+    cout << "\n--- Latte Summary ---\n";
+    cout << "Strength (brew):      " << strength << " (espresso 1:" << r.brewRatio << ")\n";
+    cout << "Shot Plan:            " << r.shots << " x " << r.shotSize << " shot(s)\n";
+    cout << "Coffee Grounds:       " << r.coffeeGrams  << " g (" << r.tablespoons << " tbsp)\n";
+    cout << "Espresso Output:      " << r.espressoCups << " cup(s) (" << r.espressoML << " mL)\n";
 
-  if (r.hasMilkTarget) {
-    cout << "Milk Style Target:    " << r.milkStyle
-         << " (milk:espresso = " << r.milkToEspRatio << ":1)\n";
-    cout << "Milk Volume:          " << r.milkCups << " cup(s) (" << r.milkML
-         << " mL)\n";
-    cout << "Estimated Final Size: " << r.finalCups << " cup(s) (" << r.finalML
-         << " mL)\n";
-  } else {
-    cout << "Milk:                 to taste (add milk to reach your preferred "
-            "latte size)\n";
-  }
+    if (r.hasMilkTarget) {
+        cout << "Milk Style Target:    " << r.milkStyle
+             << " (milk:espresso = " << r.milkToEspRatio << ":1)\n";
+        cout << "Milk Volume:          " << r.milkCups << " cup(s) (" << r.milkML << " mL)\n";
+        cout << "Estimated Final Size: " << r.finalCups << " cup(s) (" << r.finalML << " mL)\n";
+    } else {
+        cout << "Milk:                 to taste (add milk to reach your preferred latte size)\n";
+    }
 
-  cout << "Enjoy your latte!\n";
+    cout << "Enjoy your latte!\n";
 }
+
