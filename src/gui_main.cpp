@@ -766,32 +766,50 @@ int runGui() {
 
     window.clear(sf::Color(18, 20, 26));
 
+    // Calculate content height to center it vertically
+    float bodyHeight = 0.0f;
+    if (state.screen == Screen::Summary) {
+        bodyHeight = 200.0f; 
+    } else if (state.valueMode || state.textMode) {
+        bodyHeight = 60.0f;
+    } else if (!state.options.empty()) {
+        bodyHeight = state.options.size() * 38.0f;
+    }
+
+    // Header (Title + Prompt + Message) ~ 140px reserved
+    float totalContentHeight = 140.0f + bodyHeight; 
+    float availableHeight = window.getSize().y - 40.0f; // Reserve space for bottom hint
+    float baseY = (availableHeight - totalContentHeight) / 2.0f;
+    if (baseY < 10.0f) baseY = 10.0f;
+
     sf::Text title = makeText(font, "Coffee & Latte Ratio Calculator", 26);
-    centerHoriz(title, 40.0f, window.getSize().x);
+    centerHoriz(title, baseY, window.getSize().x);
     window.draw(title);
 
     if (state.screen == Screen::MainMenu) {
         sf::Text stats = makeText(font, "Daily Caffeine: " + formatDouble(state.dailyCaffeine) + " mg", 16);
         stats.setFillColor(sf::Color(150, 200, 255));
-        centerHoriz(stats, 75.0f, window.getSize().x);
+        centerHoriz(stats, baseY + 35.0f, window.getSize().x);
         window.draw(stats);
     }
 
     sf::Text promptText = makeText(font, state.prompt, 18);
-    centerHoriz(promptText, 110.0f, window.getSize().x);
+    centerHoriz(promptText, baseY + 70.0f, window.getSize().x);
     window.draw(promptText);
 
     if (!state.message.empty()) {
       sf::Text msg = makeText(font, state.message, 16);
       msg.setFillColor(sf::Color(255, 120, 120));
-      centerHoriz(msg, 150.0f, window.getSize().x);
+      centerHoriz(msg, baseY + 110.0f, window.getSize().x);
       window.draw(msg);
     }
+
+    float bodyY = baseY + 140.0f;
 
     if (state.screen == Screen::Summary) {
       sf::Text sum = makeText(font, state.summary, 16);
       sum.setPosition(
-          {window.getSize().x / 2.0f - sum.getLocalBounds().size.x / 2.0f, 180.0f});
+          {window.getSize().x / 2.0f - sum.getLocalBounds().size.x / 2.0f, bodyY});
       window.draw(sum);
       sf::Text hint =
           makeText(font, "Enter to return to menu, Esc to restart", 14);
@@ -802,7 +820,7 @@ int runGui() {
       oss << std::fixed << std::setprecision(2) << state.value;
       std::string valueStr = state.valueLabel + ": " + oss.str();
       sf::Text v = makeText(font, valueStr, 20);
-      centerHoriz(v, 200.0f, window.getSize().x);
+      centerHoriz(v, bodyY, window.getSize().x);
       window.draw(v);
       sf::Text hint =
           makeText(font, "Up/Down to adjust, Enter to confirm, Esc to restart",
@@ -812,14 +830,14 @@ int runGui() {
     } else if (state.textMode) {
       std::string display = state.textInput.empty() ? "_" : state.textInput;
       sf::Text t = makeText(font, display, 20);
-      centerHoriz(t, 200.0f, window.getSize().x);
+      centerHoriz(t, bodyY, window.getSize().x);
       window.draw(t);
       sf::Text hint =
           makeText(font, "Type to edit, Enter to confirm, Esc to restart", 14);
       centerHoriz(hint, window.getSize().y - 30.0f, window.getSize().x);
       window.draw(hint);
     } else if (!state.options.empty()) {
-      drawOptions(window, font, state.options, state.selected, 170.0f);
+      drawOptions(window, font, state.options, state.selected, bodyY);
       sf::Text hint = makeText(
           font,
           "Up/Down to move, Enter to confirm, Left/backspace to go back, Esc to restart",

@@ -141,7 +141,7 @@ Follow the on-screen prompts to customize your drink parameters.
 - Cross-platform Makefile: Windows/Linux support with GUI targets; MinGW/SFML documented.
 - Header hygiene: removed `using namespace std` from headers and unused includes to avoid conflicts.
 - Input validation: added checks for menu/preset inputs; latte summary shows shot size correctly.
-- GUI: Updated for SFML 3.0 compatibility; enabled window resizing; added caffeine stats and warnings.
+- GUI: Updated for SFML 3.0 compatibility; enabled window resizing; added caffeine stats and warnings; implemented dynamic vertical centering.
 - Font: Bundled `arial.ttf` in `resources/` for consistent cross-platform appearance; removed dependency on system fonts.
 - Preset manager: added `getPresetNames()` to list presets for GUI loading.
 - Docs/help: README and `make help` now include OS-specific build/run commands and copy-paste setup for Linux and Windows.
