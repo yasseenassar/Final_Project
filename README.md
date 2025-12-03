@@ -17,7 +17,10 @@ Interactive calculator that determines coffee/water ratios for brewed coffee or 
 - Latte ratio calculator with espresso shots and milk options
 - Support for different milk styles (cortado, flat white, latte, custom)
 - Preset system to save and load favorite drink configurations
+- **Daily Caffeine Stats**: Tracks estimated caffeine intake for the session
+- **High Caffeine Warning**: Alerts when ordering more than 5 espresso shots
 - Input validation and error handling
+- Resizable GUI window with responsive control tips
 
 ## Building the Project
 
@@ -93,6 +96,7 @@ Final_Project/
 ├── build/         # Object files (.o)
 ├── include/       # Header files (.hpp)
 ├── src/           # Source files (.cpp)
+├── resources/     # Assets (fonts)
 ├── Makefile       # Build configuration
 └── README.md      # This file
 ```
@@ -137,7 +141,8 @@ Follow the on-screen prompts to customize your drink parameters.
 - Cross-platform Makefile: Windows/Linux support with GUI targets; MinGW/SFML documented.
 - Header hygiene: removed `using namespace std` from headers and unused includes to avoid conflicts.
 - Input validation: added checks for menu/preset inputs; latte summary shows shot size correctly.
-- GUI: Updated for SFML 3.0 compatibility (event handling, API changes) and fixed Windows build.
+- GUI: Updated for SFML 3.0 compatibility; enabled window resizing; added caffeine stats and warnings.
+- Font: Bundled `arial.ttf` in `resources/` for consistent cross-platform appearance; removed dependency on system fonts.
 - Preset manager: added `getPresetNames()` to list presets for GUI loading.
 - Docs/help: README and `make help` now include OS-specific build/run commands and copy-paste setup for Linux and Windows.
 - Cleanup: removed obsolete root-level duplicates of source/header files; canonical code lives in `src/` and `include/`.

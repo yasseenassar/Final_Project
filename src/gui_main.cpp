@@ -59,15 +59,10 @@ std::string formatDouble(double x) {
  * Returns true on success.
  ******************************************************************/
 bool loadFont(sf::Font &font) {
-  const std::vector<std::string> candidates = {
-      "resources/DejaVuSans.ttf",
-      "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
-      "/usr/local/share/fonts/DejaVuSans.ttf",
-      "C:\\\\Windows\\\\Fonts\\\\arial.ttf"};
-  for (const std::string &path : candidates) {
-    if (font.openFromFile(path))
-      return true;
-  }
+  if (font.openFromFile("resources/arial.ttf"))
+    return true;
+  
+  std::cerr << "Failed to load resources/arial.ttf" << std::endl;
   return false;
 }
 
@@ -163,6 +158,10 @@ struct UiState {
   std::string presetName;
   PresetManager presets;
   std::vector<Screen> history;
+
+  // stats
+  double dailyCaffeine = 0.0;
+  bool warningShown = false;
 };
 
 /******************************************************************
@@ -219,7 +218,7 @@ std::string buildLatteSummary(const UiState &state, const LatteResult &r) {
  ******************************************************************/
 int runGui() {
   sf::RenderWindow window(sf::VideoMode({760, 540}), "Coffee & Latte Calculator",
-                          sf::Style::Titlebar | sf::Style::Close);
+                          sf::Style::Default);
   window.setFramerateLimit(60);
 
   sf::Font font;
@@ -242,6 +241,7 @@ int runGui() {
     state.textMode = false;
     state.options.clear();
     state.message.clear();
+    state.warningShown = false; // Reset warning state on screen change
     // Don't clear addons here, as we might be navigating back/forth within a flow
     // But do clear them when starting a new flow (handled in startMakeFlow)
     switch (s) {
@@ -452,6 +452,7 @@ int runGui() {
     } else {
       state.summary = buildCoffeeSummary(state, r);
     }
+    state.dailyCaffeine += r.waterCups * CAFFEINE_PER_CUP_COFFEE;
     state.screen = Screen::Summary;
     return true;
   };
@@ -484,6 +485,10 @@ int runGui() {
     } else {
       state.summary = buildLatteSummary(state, r);
     }
+    double shotMg = (state.latteShotSize == "double") ? (2.0 * CAFFEINE_PER_SINGLE_SHOT) : CAFFEINE_PER_SINGLE_SHOT;
+    state.dailyCaffeine += state.latteShots * shotMg;
+    state.dailyCaffeine += state.extraShots * CAFFEINE_PER_SINGLE_SHOT;
+
     state.screen = Screen::Summary;
     return true;
   };
@@ -659,6 +664,11 @@ int runGui() {
       setOptions(Screen::AddonsPrompt, "Add addons?", {"No", "Yes"});
       break;
     case Screen::LatteShots:
+      if (state.value > 5.0 && !state.warningShown) {
+        state.message = "Warning: High caffeine content! Enter again to confirm.";
+        state.warningShown = true;
+        break;
+      }
       state.latteShots = static_cast<int>(state.value);
       setOptions(Screen::LatteMilkStyle, "Milk style",
                  {"none", "cortado", "flatwhite", "latte", "custom"});
@@ -745,6 +755,9 @@ int runGui() {
             state.textInput.push_back(static_cast<char>(textEntered->unicode));
           }
         }
+      } else if (const auto* resized = event->getIf<sf::Event::Resized>()) {
+          sf::FloatRect visibleArea({0.f, 0.f}, {static_cast<float>(resized->size.x), static_cast<float>(resized->size.y)});
+          window.setView(sf::View(visibleArea));
       }
     }
 
@@ -756,6 +769,13 @@ int runGui() {
     sf::Text title = makeText(font, "Coffee & Latte Ratio Calculator", 26);
     centerHoriz(title, 40.0f, window.getSize().x);
     window.draw(title);
+
+    if (state.screen == Screen::MainMenu) {
+        sf::Text stats = makeText(font, "Daily Caffeine: " + formatDouble(state.dailyCaffeine) + " mg", 16);
+        stats.setFillColor(sf::Color(150, 200, 255));
+        centerHoriz(stats, 75.0f, window.getSize().x);
+        window.draw(stats);
+    }
 
     sf::Text promptText = makeText(font, state.prompt, 18);
     centerHoriz(promptText, 110.0f, window.getSize().x);
@@ -775,7 +795,7 @@ int runGui() {
       window.draw(sum);
       sf::Text hint =
           makeText(font, "Enter to return to menu, Esc to restart", 14);
-      centerHoriz(hint, 330.0f, window.getSize().x);
+      centerHoriz(hint, window.getSize().y - 30.0f, window.getSize().x);
       window.draw(hint);
     } else if (state.valueMode) {
       std::ostringstream oss;
@@ -787,7 +807,7 @@ int runGui() {
       sf::Text hint =
           makeText(font, "Up/Down to adjust, Enter to confirm, Esc to restart",
                    14);
-      centerHoriz(hint, 240.0f, window.getSize().x);
+      centerHoriz(hint, window.getSize().y - 30.0f, window.getSize().x);
       window.draw(hint);
     } else if (state.textMode) {
       std::string display = state.textInput.empty() ? "_" : state.textInput;
@@ -796,7 +816,7 @@ int runGui() {
       window.draw(t);
       sf::Text hint =
           makeText(font, "Type to edit, Enter to confirm, Esc to restart", 14);
-      centerHoriz(hint, 240.0f, window.getSize().x);
+      centerHoriz(hint, window.getSize().y - 30.0f, window.getSize().x);
       window.draw(hint);
     } else if (!state.options.empty()) {
       drawOptions(window, font, state.options, state.selected, 170.0f);
@@ -804,7 +824,7 @@ int runGui() {
           font,
           "Up/Down to move, Enter to confirm, Left/backspace to go back, Esc to restart",
           14);
-      centerHoriz(hint, 330.0f, window.getSize().x);
+      centerHoriz(hint, window.getSize().y - 30.0f, window.getSize().x);
       window.draw(hint);
     }
 
