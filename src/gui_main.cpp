@@ -718,8 +718,7 @@ int runGui() {
       if (event->is<sf::Event::Closed>()) {
         window.close();
       } else if (const auto* keyPressed = event->getIf<sf::Event::KeyPressed>()) {
-        if (keyPressed->code == sf::Keyboard::Key::Left ||
-            keyPressed->code == sf::Keyboard::Key::Backspace) {
+        if (keyPressed->code == sf::Keyboard::Key::Left) {
           goBack();
         } else if (keyPressed->code == sf::Keyboard::Key::Escape) {
           resetToMenu();
@@ -840,7 +839,7 @@ int runGui() {
       drawOptions(window, font, state.options, state.selected, bodyY);
       sf::Text hint = makeText(
           font,
-          "Up/Down to move, Enter to confirm, Left/backspace to go back, Esc to restart",
+          "Up/Down to move, Enter to confirm, Left to go back, Esc to restart",
           14);
       centerHoriz(hint, window.getSize().y - 30.0f, window.getSize().x);
       window.draw(hint);
